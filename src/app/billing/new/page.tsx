@@ -136,31 +136,33 @@ export default function NewBillPage() {
 
   // Handlers
   const handleAddProduct = (prod: Product) => {
-    const existing = lineItems.find(item => item.product_id === prod.id);
-    if (existing) {
-      if (existing.quantity >= Number(prod.stock_quantity)) {
-        const confirmAdd = window.confirm(`Insufficient stock. Only ${prod.stock_quantity} available in inventory. Do you want to add another anyway?`);
-        if (!confirmAdd) return;
+    setLineItems((prevItems) => {
+      const existing = prevItems.find(item => item.product_id === prod.id);
+      if (existing) {
+        if (existing.quantity >= Number(prod.stock_quantity)) {
+          const confirmAdd = window.confirm(`Insufficient stock. Only ${prod.stock_quantity} available in inventory. Do you want to add another anyway?`);
+          if (!confirmAdd) return prevItems;
+        }
+        return prevItems.map(item =>
+          item.product_id === prod.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+      } else {
+        if (Number(prod.stock_quantity) <= 0) {
+          const confirmAdd = window.confirm(`Product "${prod.name}" is out of stock in the inventory registry. Do you want to add it anyway?`);
+          if (!confirmAdd) return prevItems;
+        }
+        return [...prevItems, {
+          id: prod.id,
+          product_id: prod.id,
+          item_name: prod.name,
+          quantity: 1,
+          unit_price: Number(prod.selling_price),
+          max_stock: Number(prod.stock_quantity)
+        }];
       }
-      setLineItems(lineItems.map(item =>
-        item.product_id === prod.id
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      ));
-    } else {
-      if (Number(prod.stock_quantity) <= 0) {
-        const confirmAdd = window.confirm(`Product "${prod.name}" is out of stock in the inventory registry. Do you want to add it anyway?`);
-        if (!confirmAdd) return;
-      }
-      setLineItems([...lineItems, {
-        id: prod.id,
-        product_id: prod.id,
-        item_name: prod.name,
-        quantity: 1,
-        unit_price: Number(prod.selling_price),
-        max_stock: Number(prod.stock_quantity)
-      }]);
-    }
+    });
     setProductSearch('');
   };
 

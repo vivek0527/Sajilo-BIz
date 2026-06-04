@@ -19,6 +19,12 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
   const [lastScanned, setLastScanned] = useState<string | null>(null);
   const [containerId] = useState(() => `barcode-scanner-view-${Math.random().toString(36).substring(2, 9)}`);
 
+  const onScanRef = useRef(onScan);
+
+  useEffect(() => {
+    onScanRef.current = onScan;
+  }, [onScan]);
+
   const safeStop = useCallback(async (scanner: Html5Qrcode | null) => {
     if (!scanner) return;
     try {
@@ -83,7 +89,7 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
           // Debounce: prevent duplicate scans
           setLastScanned((prev) => {
             if (prev === decodedText) return prev;
-            onScan(decodedText);
+            onScanRef.current(decodedText);
             return decodedText;
           });
           setTimeout(() => {
