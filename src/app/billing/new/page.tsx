@@ -103,10 +103,10 @@ export default function NewBillPage() {
 
   const matchedCustomers = customerName.trim() === ''
     ? []
-    : customers.filter(c => 
-        c.name.toLowerCase().includes(customerName.toLowerCase()) ||
-        (c.phone && c.phone.includes(customerName))
-      ).slice(0, 5);
+    : customers.filter(c =>
+      c.name.toLowerCase().includes(customerName.toLowerCase()) ||
+      (c.phone && c.phone.includes(customerName))
+    ).slice(0, 5);
 
   // Set default tax from settings once settings are loaded
   useEffect(() => {
@@ -253,7 +253,7 @@ export default function NewBillPage() {
       let finalCustomerId = selectedCustomerId;
 
       if (!finalCustomerId && customerName.trim()) {
-        const existing = customers.find(c => 
+        const existing = customers.find(c =>
           c.name.toLowerCase() === customerName.trim().toLowerCase() ||
           (c.phone && customerPhone && c.phone === customerPhone.trim())
         );
@@ -316,9 +316,9 @@ export default function NewBillPage() {
   const filteredProducts = productSearch.trim() === ''
     ? []
     : products.filter(p =>
-        p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-        (p.barcode && p.barcode.includes(productSearch))
-      ).slice(0, 5);
+      p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+      (p.barcode && p.barcode.includes(productSearch))
+    ).slice(0, 5);
 
   const currencySymbol = settings?.currency_symbol || '₹';
 
@@ -338,7 +338,7 @@ export default function NewBillPage() {
           <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <User size={16} className="text-primary" /> Customer Details
           </h3>
-          
+
           <div className="space-y-3 pt-1">
             {/* Name */}
             <div className="relative">
@@ -701,7 +701,7 @@ export default function NewBillPage() {
                         <span className="text-xs text-muted-foreground">×</span>
                         <span className="font-mono text-sm">{currencySymbol}{item.unit_price}</span>
                       </div>
-                      
+
                       <div className="flex items-center gap-1 bg-secondary/30 px-2 py-1 rounded-xl border border-border/50">
                         <span className="text-xs text-muted-foreground font-semibold">Disc:</span>
                         <input
@@ -731,7 +731,7 @@ export default function NewBillPage() {
                         </button>
                       </div>
                     </div>
-                    
+
                     <div className="flex justify-between items-center pt-1 border-t border-dotted border-border/50">
                       <span className="text-xs text-muted-foreground">Line Total:</span>
                       {item.discount_value && item.discount_value > 0 ? (
@@ -782,7 +782,7 @@ export default function NewBillPage() {
       {showSettlement && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="relative w-full max-w-md bg-card rounded-3xl border border-border shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
-            
+
             {/* Modal Header */}
             <div className="bg-secondary/50 px-6 py-4 border-b border-border flex items-center justify-between shrink-0">
               <div>
@@ -802,7 +802,7 @@ export default function NewBillPage() {
 
             {/* Modal Content */}
             <div className="p-6 overflow-y-auto space-y-6">
-              
+
               {/* Calculations Breakdown */}
               <div className="grid grid-cols-2 gap-4 text-sm bg-secondary/30 p-4 rounded-2xl border border-border/50">
                 <div>
@@ -883,11 +883,10 @@ export default function NewBillPage() {
                       key={method}
                       type="button"
                       onClick={() => setPaymentMethod(method)}
-                      className={`py-2.5 text-xs font-semibold rounded-xl border transition-all ${
-                        paymentMethod === method
+                      className={`py-2.5 text-xs font-semibold rounded-xl border transition-all ${paymentMethod === method
                           ? 'border-primary bg-primary/10 text-primary font-bold shadow-sm'
                           : 'border-border bg-background text-muted-foreground hover:text-foreground hover:bg-secondary'
-                      }`}
+                        }`}
                     >
                       {method}
                     </button>
@@ -923,7 +922,7 @@ export default function NewBillPage() {
                   </label>
                 </div>
               )}
-              
+
               {errorMsg && (
                 <div className="rounded-xl bg-destructive/10 border border-destructive/20 p-3.5 text-xs text-destructive flex items-start gap-2">
                   <AlertCircle size={14} className="mt-0.5 shrink-0" />

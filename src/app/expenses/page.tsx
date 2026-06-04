@@ -143,7 +143,7 @@ export default function ExpensesPage() {
   // Filter logic
   const filteredExpenses = expenses.filter(e => {
     const matchesSearch = e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (e.description && e.description.toLowerCase().includes(searchQuery.toLowerCase()));
+      (e.description && e.description.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesCategory = selectedCategory === '' || e.category === selectedCategory;
     const matchesDate = selectedDate === '' || e.date === selectedDate;
     return matchesSearch && matchesCategory && matchesDate;

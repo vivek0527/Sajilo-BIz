@@ -113,10 +113,10 @@ export default function EditBillPage() {
 
   const matchedCustomers = customerName.trim() === ''
     ? []
-    : customers.filter(c => 
-        c.name.toLowerCase().includes(customerName.toLowerCase()) ||
-        (c.phone && c.phone.includes(customerName))
-      ).slice(0, 5);
+    : customers.filter(c =>
+      c.name.toLowerCase().includes(customerName.toLowerCase()) ||
+      (c.phone && c.phone.includes(customerName))
+    ).slice(0, 5);
 
   // Prepopulate state when bill loads
   useEffect(() => {
@@ -147,12 +147,12 @@ export default function EditBillPage() {
           const matchingProduct = products.find(p => p.id === item.product_id);
           // When editing, maximum stock available is the current product stock PLUS the quantity already in the bill
           const currentStock = matchingProduct ? Number(matchingProduct.stock_quantity) : 0;
-          
+
           // Parse item level discount from name
           let cleanName = item.item_name;
           let discType: 'percentage' | 'fixed' = 'percentage';
           let discValue = 0;
-          
+
           const match = item.item_name.match(/(.*)\s+\(Disc:\s*([\d.]+)([^)]+)\)$/);
           if (match) {
             cleanName = match[1].trim();
@@ -316,7 +316,7 @@ export default function EditBillPage() {
       let finalCustomerId = selectedCustomerId;
 
       if (!finalCustomerId && customerName.trim()) {
-        const existing = customers.find(c => 
+        const existing = customers.find(c =>
           c.name.toLowerCase() === customerName.trim().toLowerCase() ||
           (c.phone && customerPhone && c.phone === customerPhone.trim())
         );
@@ -380,9 +380,9 @@ export default function EditBillPage() {
   const filteredProducts = productSearch.trim() === ''
     ? []
     : products.filter(p =>
-        p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-        (p.barcode && p.barcode.includes(productSearch))
-      ).slice(0, 5);
+      p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+      (p.barcode && p.barcode.includes(productSearch))
+    ).slice(0, 5);
 
   const currencySymbol = settings?.currency_symbol || '₹';
 
@@ -429,7 +429,7 @@ export default function EditBillPage() {
           <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <User size={16} className="text-primary" /> Customer Details
           </h3>
-          
+
           <div className="space-y-3 pt-1">
             {/* Name */}
             <div className="relative">
@@ -634,210 +634,210 @@ export default function EditBillPage() {
         ) : (
           <>
             <div className="overflow-x-auto hidden sm:block">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-border text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  <th className="px-6 py-3">Item Name</th>
-                  <th className="px-6 py-3 text-center">Quantity</th>
-                  <th className="px-6 py-3">Unit Price</th>
-                  <th className="px-6 py-3 text-center">Discount</th>
-                  <th className="px-6 py-3">Total</th>
-                  <th className="px-6 py-3 text-right">Delete</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border text-sm">
-                {lineItems.map((item) => {
-                  const itemTotal = calculateItemTotal(item);
-                  const originalTotal = item.quantity * item.unit_price;
-                  return (
-                    <tr key={item.id} className="hover:bg-secondary/10 transition-all">
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col">
-                          <span className="font-semibold">{item.item_name}</span>
-                          {item.max_stock !== undefined && (
-                            <span className="text-[10px] text-muted-foreground mt-0.5">Max Available: {item.max_stock}</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
-                            className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-secondary"
-                          >
-                            <Minus size={10} />
-                          </button>
-                          <span className="font-semibold font-mono w-6 text-center">{item.quantity}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
-                            className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-secondary"
-                          >
-                            <Plus size={10} />
-                          </button>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <input
-                          type="number"
-                          value={item.unit_price}
-                          onChange={(e) => {
-                            e.target.value = e.target.value.replace(/^0+(?=\d)/, '');
-                            const newPrice = Number(e.target.value);
-                            setLineItems(lineItems.map(i =>
-                              i.id === item.id ? { ...i, unit_price: newPrice } : i
-                            ));
-                          }}
-                          className="w-20 rounded border border-border bg-background/50 px-2 py-0.5 text-sm font-mono text-foreground focus:outline-none"
-                        />
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-center gap-1">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-border text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <th className="px-6 py-3">Item Name</th>
+                    <th className="px-6 py-3 text-center">Quantity</th>
+                    <th className="px-6 py-3">Unit Price</th>
+                    <th className="px-6 py-3 text-center">Discount</th>
+                    <th className="px-6 py-3">Total</th>
+                    <th className="px-6 py-3 text-right">Delete</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border text-sm">
+                  {lineItems.map((item) => {
+                    const itemTotal = calculateItemTotal(item);
+                    const originalTotal = item.quantity * item.unit_price;
+                    return (
+                      <tr key={item.id} className="hover:bg-secondary/10 transition-all">
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col">
+                            <span className="font-semibold">{item.item_name}</span>
+                            {item.max_stock !== undefined && (
+                              <span className="text-[10px] text-muted-foreground mt-0.5">Max Available: {item.max_stock}</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
+                              className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-secondary"
+                            >
+                              <Minus size={10} />
+                            </button>
+                            <span className="font-semibold font-mono w-6 text-center">{item.quantity}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+                              className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-secondary"
+                            >
+                              <Plus size={10} />
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
                           <input
                             type="number"
-                            placeholder="0"
-                            value={item.discount_value || ''}
+                            value={item.unit_price}
                             onChange={(e) => {
                               e.target.value = e.target.value.replace(/^0+(?=\d)/, '');
-                              const val = Number(e.target.value) || 0;
+                              const newPrice = Number(e.target.value);
                               setLineItems(lineItems.map(i =>
-                                i.id === item.id ? { ...i, discount_value: val } : i
+                                i.id === item.id ? { ...i, unit_price: newPrice } : i
                               ));
                             }}
-                            className="w-16 rounded border border-border bg-background/50 px-2 py-0.5 text-sm font-mono text-center focus:outline-none"
+                            className="w-20 rounded border border-border bg-background/50 px-2 py-0.5 text-sm font-mono text-foreground focus:outline-none"
                           />
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-center gap-1">
+                            <input
+                              type="number"
+                              placeholder="0"
+                              value={item.discount_value || ''}
+                              onChange={(e) => {
+                                e.target.value = e.target.value.replace(/^0+(?=\d)/, '');
+                                const val = Number(e.target.value) || 0;
+                                setLineItems(lineItems.map(i =>
+                                  i.id === item.id ? { ...i, discount_value: val } : i
+                                ));
+                              }}
+                              className="w-16 rounded border border-border bg-background/50 px-2 py-0.5 text-sm font-mono text-center focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const nextType = item.discount_type === 'fixed' ? 'percentage' : 'fixed';
+                                setLineItems(lineItems.map(i =>
+                                  i.id === item.id ? { ...i, discount_type: nextType } : i
+                                ));
+                              }}
+                              className="px-2 py-0.5 rounded border border-border bg-secondary hover:bg-secondary/80 text-xs font-semibold text-foreground font-mono"
+                            >
+                              {item.discount_type === 'fixed' ? currencySymbol : '%'}
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 font-mono font-semibold">
+                          {item.discount_value && item.discount_value > 0 ? (
+                            <div className="flex flex-col">
+                              <span className="text-xs text-muted-foreground line-through">{currencySymbol}{originalTotal.toFixed(2)}</span>
+                              <span className="text-primary">{currencySymbol}{itemTotal.toFixed(2)}</span>
+                            </div>
+                          ) : (
+                            <span>{currencySymbol}{originalTotal.toFixed(2)}</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-right">
                           <button
                             type="button"
-                            onClick={() => {
-                              const nextType = item.discount_type === 'fixed' ? 'percentage' : 'fixed';
-                              setLineItems(lineItems.map(i =>
-                                i.id === item.id ? { ...i, discount_type: nextType } : i
-                              ));
-                            }}
-                            className="px-2 py-0.5 rounded border border-border bg-secondary hover:bg-secondary/80 text-xs font-semibold text-foreground font-mono"
+                            onClick={() => handleDeleteItem(item.id)}
+                            className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-destructive/20 text-destructive hover:bg-destructive/10"
                           >
-                            {item.discount_type === 'fixed' ? currencySymbol : '%'}
+                            <Trash2 size={12} />
                           </button>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 font-mono font-semibold">
-                        {item.discount_value && item.discount_value > 0 ? (
-                          <div className="flex flex-col">
-                            <span className="text-xs text-muted-foreground line-through">{currencySymbol}{originalTotal.toFixed(2)}</span>
-                            <span className="text-primary">{currencySymbol}{itemTotal.toFixed(2)}</span>
-                          </div>
-                        ) : (
-                          <span>{currencySymbol}{originalTotal.toFixed(2)}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card View for Line Items */}
+            <div className="sm:hidden divide-y divide-border">
+              {lineItems.map((item) => {
+                const itemTotal = calculateItemTotal(item);
+                const originalTotal = item.quantity * item.unit_price;
+                return (
+                  <div key={item.id} className="p-4 space-y-2">
+                    <div className="flex items-start justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold text-sm">{item.item_name}</div>
+                        {item.max_stock !== undefined && (
+                          <span className="text-[10px] text-muted-foreground">Stock: {item.max_stock}</span>
                         )}
-                      </td>
-                      <td className="px-6 py-4 text-right">
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteItem(item.id)}
+                        className="h-7 w-7 inline-flex items-center justify-center rounded-lg border border-destructive/20 text-destructive hover:bg-destructive/10 shrink-0"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => handleDeleteItem(item.id)}
-                          className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-destructive/20 text-destructive hover:bg-destructive/10"
+                          onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
+                          className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-secondary"
                         >
-                          <Trash2 size={12} />
+                          <Minus size={10} />
                         </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        <span className="font-semibold font-mono w-6 text-center">{item.quantity}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+                          className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-secondary"
+                        >
+                          <Plus size={10} />
+                        </button>
+                        <span className="text-xs text-muted-foreground">×</span>
+                        <span className="font-mono text-sm">{currencySymbol}{item.unit_price}</span>
+                      </div>
 
-          {/* Mobile Card View for Line Items */}
-          <div className="sm:hidden divide-y divide-border">
-            {lineItems.map((item) => {
-              const itemTotal = calculateItemTotal(item);
-              const originalTotal = item.quantity * item.unit_price;
-              return (
-                <div key={item.id} className="p-4 space-y-2">
-                  <div className="flex items-start justify-between">
-                    <div className="min-w-0 flex-1">
-                      <div className="font-semibold text-sm">{item.item_name}</div>
-                      {item.max_stock !== undefined && (
-                        <span className="text-[10px] text-muted-foreground">Stock: {item.max_stock}</span>
+                      <div className="flex items-center gap-1 bg-secondary/30 px-2 py-1 rounded-xl border border-border/50">
+                        <span className="text-xs text-muted-foreground font-semibold">Disc:</span>
+                        <input
+                          type="number"
+                          placeholder="0"
+                          value={item.discount_value || ''}
+                          onChange={(e) => {
+                            e.target.value = e.target.value.replace(/^0+(?=\d)/, '');
+                            const val = Number(e.target.value) || 0;
+                            setLineItems(lineItems.map(i =>
+                              i.id === item.id ? { ...i, discount_value: val } : i
+                            ));
+                          }}
+                          className="w-12 rounded border border-border bg-background/50 px-1 py-0.5 text-xs font-mono text-center focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nextType = item.discount_type === 'fixed' ? 'percentage' : 'fixed';
+                            setLineItems(lineItems.map(i =>
+                              i.id === item.id ? { ...i, discount_type: nextType } : i
+                            ));
+                          }}
+                          className="px-1.5 py-0.5 rounded border border-border bg-background hover:bg-secondary text-[10px] font-semibold text-foreground font-mono"
+                        >
+                          {item.discount_type === 'fixed' ? currencySymbol : '%'}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center pt-1 border-t border-dotted border-border/50">
+                      <span className="text-xs text-muted-foreground">Line Total:</span>
+                      {item.discount_value && item.discount_value > 0 ? (
+                        <div className="flex items-center gap-2 font-mono">
+                          <span className="text-xs text-muted-foreground line-through">{currencySymbol}{originalTotal.toFixed(2)}</span>
+                          <span className="font-semibold text-primary text-sm">{currencySymbol}{itemTotal.toFixed(2)}</span>
+                        </div>
+                      ) : (
+                        <span className="font-mono font-semibold text-sm">{currencySymbol}{originalTotal.toFixed(2)}</span>
                       )}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteItem(item.id)}
-                      className="h-7 w-7 inline-flex items-center justify-center rounded-lg border border-destructive/20 text-destructive hover:bg-destructive/10 shrink-0"
-                    >
-                      <Trash2 size={12} />
-                    </button>
                   </div>
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
-                        className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-secondary"
-                      >
-                        <Minus size={10} />
-                      </button>
-                      <span className="font-semibold font-mono w-6 text-center">{item.quantity}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
-                        className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-secondary"
-                      >
-                        <Plus size={10} />
-                      </button>
-                      <span className="text-xs text-muted-foreground">×</span>
-                      <span className="font-mono text-sm">{currencySymbol}{item.unit_price}</span>
-                    </div>
-                    
-                    <div className="flex items-center gap-1 bg-secondary/30 px-2 py-1 rounded-xl border border-border/50">
-                      <span className="text-xs text-muted-foreground font-semibold">Disc:</span>
-                      <input
-                        type="number"
-                        placeholder="0"
-                        value={item.discount_value || ''}
-                        onChange={(e) => {
-                          e.target.value = e.target.value.replace(/^0+(?=\d)/, '');
-                          const val = Number(e.target.value) || 0;
-                          setLineItems(lineItems.map(i =>
-                            i.id === item.id ? { ...i, discount_value: val } : i
-                          ));
-                        }}
-                        className="w-12 rounded border border-border bg-background/50 px-1 py-0.5 text-xs font-mono text-center focus:outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const nextType = item.discount_type === 'fixed' ? 'percentage' : 'fixed';
-                          setLineItems(lineItems.map(i =>
-                            i.id === item.id ? { ...i, discount_type: nextType } : i
-                          ));
-                        }}
-                        className="px-1.5 py-0.5 rounded border border-border bg-background hover:bg-secondary text-[10px] font-semibold text-foreground font-mono"
-                      >
-                        {item.discount_type === 'fixed' ? currencySymbol : '%'}
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-between items-center pt-1 border-t border-dotted border-border/50">
-                    <span className="text-xs text-muted-foreground">Line Total:</span>
-                    {item.discount_value && item.discount_value > 0 ? (
-                      <div className="flex items-center gap-2 font-mono">
-                        <span className="text-xs text-muted-foreground line-through">{currencySymbol}{originalTotal.toFixed(2)}</span>
-                        <span className="font-semibold text-primary text-sm">{currencySymbol}{itemTotal.toFixed(2)}</span>
-                      </div>
-                    ) : (
-                      <span className="font-mono font-semibold text-sm">{currencySymbol}{originalTotal.toFixed(2)}</span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-    </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
 
 
       {/* Summary and Proceed Button Footer Bar */}
@@ -870,7 +870,7 @@ export default function EditBillPage() {
       {showSettlement && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="relative w-full max-w-md bg-card rounded-3xl border border-border shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
-            
+
             {/* Modal Header */}
             <div className="bg-secondary/50 px-6 py-4 border-b border-border flex items-center justify-between shrink-0">
               <div>
@@ -890,7 +890,7 @@ export default function EditBillPage() {
 
             {/* Modal Content */}
             <div className="p-6 overflow-y-auto space-y-6">
-              
+
               {/* Calculations Breakdown */}
               <div className="grid grid-cols-2 gap-4 text-sm bg-secondary/30 p-4 rounded-2xl border border-border/50">
                 <div>
@@ -972,11 +972,10 @@ export default function EditBillPage() {
                       key={method}
                       type="button"
                       onClick={() => setPaymentMethod(method)}
-                      className={`py-2.5 text-xs font-semibold rounded-xl border transition-all ${
-                        paymentMethod === method
+                      className={`py-2.5 text-xs font-semibold rounded-xl border transition-all ${paymentMethod === method
                           ? 'border-primary bg-primary/10 text-primary font-bold shadow-sm'
                           : 'border-border bg-background text-muted-foreground hover:text-foreground hover:bg-secondary'
-                      }`}
+                        }`}
                     >
                       {method}
                     </button>
@@ -1012,7 +1011,7 @@ export default function EditBillPage() {
                   </label>
                 </div>
               )}
-              
+
               {errorMsg && (
                 <div className="rounded-xl bg-destructive/10 border border-destructive/20 p-3.5 text-xs text-destructive flex items-start gap-2">
                   <AlertCircle size={14} className="mt-0.5 shrink-0" />

@@ -11,6 +11,7 @@ import {
   Receipt,
   Users,
   TrendingDown,
+  BarChart3,
   Settings,
   LogOut,
   Sun,
@@ -45,16 +46,16 @@ export default function Sidebar() {
     { name: 'All Invoices', href: '/billing/all', icon: Receipt },
     { name: 'Customers', href: '/customers', icon: Users },
     { name: 'Expenses', href: '/expenses', icon: TrendingDown },
+    { name: 'Accounts', href: '/accounts', icon: BarChart3 },
     { name: 'Settings', href: '/settings', icon: Settings },
   ];
 
   return (
     <aside
-      className={`no-print fixed top-0 left-0 z-40 h-screen border-r border-border bg-card/90 backdrop-blur-md transition-all duration-300 ${
-        sidebarOpen 
-          ? 'translate-x-0 w-64' 
+      className={`no-print fixed top-0 left-0 z-40 h-screen border-r border-border bg-card/90 backdrop-blur-md transition-all duration-300 ${sidebarOpen
+          ? 'translate-x-0 w-64'
           : '-translate-x-full md:translate-x-0 w-64 md:w-20'
-      }`}
+        }`}
     >
       <div className="flex h-full flex-col justify-between py-6 px-4">
         <div>
@@ -97,8 +98,8 @@ export default function Sidebar() {
                   key={item.name}
                   href={item.href}
                   className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all ${isActive
-                      ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
-                      : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                    ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
+                    : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
                     }`}
                 >
                   <Icon size={20} className={isActive ? 'text-primary-foreground' : 'text-muted-foreground group-hover:text-foreground'} />

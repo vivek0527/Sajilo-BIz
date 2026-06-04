@@ -56,9 +56,9 @@ export default function AllBillsPage() {
   const filteredBills = bills.filter(b => {
     const customerName = b.customer?.name || 'Walk-in Customer';
     const matchesSearch = customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          String(b.bill_number).includes(searchQuery);
+      String(b.bill_number).includes(searchQuery);
     const matchesStatus = statusFilter === '' || b.status === statusFilter;
-    
+
     let matchesDate = true;
     if (dateFilter) {
       const billDateStr = new Date(b.created_at).toISOString().split('T')[0];
@@ -146,11 +146,10 @@ export default function AllBillsPage() {
       <div className="flex border-b border-border/60 pb-1 gap-6 overflow-x-auto scrollbar-none whitespace-nowrap font-medium">
         <button
           onClick={() => setTabFilter('all')}
-          className={`pb-3 text-sm font-semibold relative transition-all ${
-            tabFilter === 'all'
-              ? 'text-primary'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
+          className={`pb-3 text-sm font-semibold relative transition-all ${tabFilter === 'all'
+            ? 'text-primary'
+            : 'text-muted-foreground hover:text-foreground'
+            }`}
         >
           All Invoices
           <span className="ml-2 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium font-mono text-muted-foreground">
@@ -163,11 +162,10 @@ export default function AllBillsPage() {
 
         <button
           onClick={() => setTabFilter('paid')}
-          className={`pb-3 text-sm font-semibold relative transition-all ${
-            tabFilter === 'paid'
-              ? 'text-emerald-500'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
+          className={`pb-3 text-sm font-semibold relative transition-all ${tabFilter === 'paid'
+            ? 'text-emerald-500'
+            : 'text-muted-foreground hover:text-foreground'
+            }`}
         >
           Fully Paid
           <span className="ml-2 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-0.5 text-xs font-medium font-mono">
@@ -180,11 +178,10 @@ export default function AllBillsPage() {
 
         <button
           onClick={() => setTabFilter('unpaid')}
-          className={`pb-3 text-sm font-semibold relative transition-all ${
-            tabFilter === 'unpaid'
-              ? 'text-red-500'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
+          className={`pb-3 text-sm font-semibold relative transition-all ${tabFilter === 'unpaid'
+            ? 'text-red-500'
+            : 'text-muted-foreground hover:text-foreground'
+            }`}
         >
           Unpaid / Outstanding
           <span className="ml-2 rounded-full bg-red-500/10 text-red-500 border border-red-500/20 px-2 py-0.5 text-xs font-medium font-mono">
@@ -227,7 +224,7 @@ export default function AllBillsPage() {
                   <th className="px-6 py-4">Total Amount</th>
                   <th className="px-6 py-4">Credit Due</th>
                   <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4">Payment Method</th>
+                  <th className="px-6 py-4">Contact Info</th>
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
@@ -252,7 +249,9 @@ export default function AllBillsPage() {
                         {b.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-xs text-muted-foreground">{b.payment_method}</td>
+                    <td className="px-6 py-4 text-sm font-bold text-foreground font-mono">
+                      {b.customer?.phone || '-'}
+                    </td>
                     <td className="px-6 py-4 text-right space-x-2">
                       <Link
                         href={`/billing/${b.id}`}
@@ -291,49 +290,58 @@ export default function AllBillsPage() {
           </div>
 
           {/* Mobile Card View */}
-          <div className="md:hidden divide-y divide-border">
+          <div className="md:hidden divide-y divide-border border-t border-border mt-2">
             {filteredBills.map((b) => (
-              <div key={b.id} className="p-4 space-y-2">
+              <div key={b.id} className="p-4 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono font-semibold text-sm">Bill #{b.bill_number}</span>
+                    <span className="font-mono font-semibold text-sm text-foreground">Bill #{b.bill_number}</span>
                     <span className={`inline-flex items-center rounded-lg border px-2 py-0.5 text-[10px] font-medium ${getStatusBadge(b.status)}`}>
                       {b.status}
                     </span>
                   </div>
-                  <span className="font-mono font-semibold text-sm">{currencySymbol}{Number(b.grand_total).toFixed(2)}</span>
+                  <span className="font-mono font-semibold text-sm text-foreground">{currencySymbol}{Number(b.grand_total).toFixed(2)}</span>
                 </div>
+                
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{b.customer?.name || 'Walk-in Customer'}</span>
+                  <span className="font-medium text-foreground">{b.customer?.name || 'Walk-in Customer'}</span>
                   <span className="font-mono">
-                    {new Date(b.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                    {new Date(b.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                   </span>
                 </div>
+                
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-muted-foreground">{b.payment_method}</span>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-xs font-bold text-foreground font-mono">{b.customer?.phone || 'No Contact Info'}</span>
                     {Number(b.pending_amount) > 0 && (
                       <span className="text-[10px] font-semibold text-red-500 font-mono">Due: {currencySymbol}{Number(b.pending_amount).toFixed(2)}</span>
                     )}
                   </div>
-                  <div className="flex gap-1.5">
+                  <div className="flex gap-1.5 shrink-0">
                     <Link
                       href={`/billing/${b.id}`}
-                      className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
                     >
-                      <Eye size={12} />
+                      <Eye size={14} />
                     </Link>
                     <Link
                       href={`/billing/${b.id}/edit`}
-                      className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-primary/20 text-primary hover:bg-primary/10"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-primary/20 text-primary hover:bg-primary/10"
                     >
-                      <Edit2 size={12} />
+                      <Edit2 size={14} />
+                    </Link>
+                    <Link
+                      href={`/receipts/${b.id}`}
+                      target="_blank"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border text-foreground/80 hover:bg-secondary"
+                    >
+                      <Printer size={14} />
                     </Link>
                     <button
                       onClick={() => handleDelete(b.id, b.bill_number)}
-                      className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-destructive/20 text-destructive hover:bg-destructive/10"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-destructive/20 text-destructive hover:bg-destructive/10"
                     >
-                      <Trash2 size={12} />
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 </div>

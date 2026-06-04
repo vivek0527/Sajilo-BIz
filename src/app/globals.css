@@ -53,9 +53,12 @@
   * {
     @apply border-border;
   }
-  html, body {
+
+  html,
+  body {
     @apply max-w-full overflow-x-hidden;
   }
+
   body {
     @apply bg-background text-foreground antialiased transition-colors duration-200;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
@@ -94,6 +97,7 @@
 .scrollbar-none::-webkit-scrollbar {
   display: none;
 }
+
 .scrollbar-none {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -105,7 +109,7 @@
     background: white !important;
     color: black !important;
   }
-  
+
   .no-print {
     display: none !important;
   }
@@ -136,6 +140,7 @@
   -webkit-appearance: none;
   display: none;
 }
+
 .search-no-clear {
   -moz-appearance: textfield;
 }

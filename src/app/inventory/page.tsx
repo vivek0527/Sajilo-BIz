@@ -60,7 +60,7 @@ type ProductFormInput = z.infer<typeof productSchema>;
 
 export default function InventoryPage() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'products' | 'categories'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'lowstock'>('products');
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -255,8 +255,17 @@ export default function InventoryPage() {
 
   // Filtering products
   const filteredProducts = products.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          (p.barcode && p.barcode.includes(searchQuery));
+    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (p.barcode && p.barcode.includes(searchQuery));
+    const matchesCategory = selectedCategoryFilter === '' || p.category_id === selectedCategoryFilter;
+    return matchesSearch && matchesCategory;
+  });
+
+  const lowStockProducts = products.filter(p => Number(p.stock_quantity) <= (p.low_stock_threshold !== undefined ? Number(p.low_stock_threshold) : 5));
+
+  const filteredLowStockProducts = lowStockProducts.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (p.barcode && p.barcode.includes(searchQuery));
     const matchesCategory = selectedCategoryFilter === '' || p.category_id === selectedCategoryFilter;
     return matchesSearch && matchesCategory;
   });
@@ -306,25 +315,33 @@ export default function InventoryPage() {
       <div className="flex border-b border-border overflow-x-auto scrollbar-none whitespace-nowrap">
         <button
           onClick={() => setActiveTab('products')}
-          className={`flex items-center gap-2 border-b-2 px-6 py-3 text-sm font-medium transition-all ${
-            activeTab === 'products'
+          className={`flex items-center gap-2 border-b-2 px-6 py-3 text-sm font-medium transition-all ${activeTab === 'products'
               ? 'border-primary text-primary'
               : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
+            }`}
         >
           <Package size={16} />
           Products ({products.length})
         </button>
         <button
           onClick={() => setActiveTab('categories')}
-          className={`flex items-center gap-2 border-b-2 px-6 py-3 text-sm font-medium transition-all ${
-            activeTab === 'categories'
+          className={`flex items-center gap-2 border-b-2 px-6 py-3 text-sm font-medium transition-all ${activeTab === 'categories'
               ? 'border-primary text-primary'
               : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
+            }`}
         >
           <FolderOpen size={16} />
           Categories ({categories.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('lowstock')}
+          className={`flex items-center gap-2 border-b-2 px-6 py-3 text-sm font-medium transition-all ${activeTab === 'lowstock'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+        >
+          <AlertTriangle size={16} />
+          Low Stock <span className="ml-1 bg-red-500/10 text-red-500 border border-red-500/20 px-2 py-0.5 rounded-full text-xs font-bold">{lowStockProducts.length}</span>
         </button>
       </div>
 
@@ -583,6 +600,182 @@ export default function InventoryPage() {
         </div>
       )}
 
+      {/* LOW STOCK TAB CONTENT */}
+      {activeTab === 'lowstock' && (
+        <div className="space-y-4">
+          {/* Filters Bar */}
+          <div className="flex flex-col gap-4 sm:flex-row">
+            {/* Search */}
+            <div className="relative flex-1">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
+                <Search size={18} />
+              </span>
+              <input
+                type="text"
+                placeholder="Search products by name or barcode..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="block w-full rounded-xl border border-border bg-card px-10 py-2.5 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+
+            {/* Category Filter */}
+            <div className="relative min-w-0 sm:min-w-[200px]">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
+                <Filter size={14} />
+              </span>
+              <select
+                value={selectedCategoryFilter}
+                onChange={(e) => setSelectedCategoryFilter(e.target.value)}
+                className="block w-full rounded-xl border border-border bg-card pl-9 pr-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="">All Categories</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Low Stock Table */}
+          {prodsLoading ? (
+            <div className="flex h-64 items-center justify-center">
+              <Loader2 className="animate-spin text-primary" size={28} />
+            </div>
+          ) : filteredLowStockProducts.length === 0 ? (
+            <div className="glass-panel flex flex-col items-center justify-center rounded-2xl p-12 text-center">
+              <Package className="mb-4 text-emerald-500" size={32} />
+              <h3 className="font-semibold text-foreground">Stock Levels are Healthy</h3>
+              <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                There are no products currently at or below their low stock threshold.
+              </p>
+            </div>
+          ) : (
+            <div className="glass-panel overflow-hidden rounded-2xl border border-border shadow-md">
+              {/* Desktop Table */}
+              <div className="overflow-x-auto hidden md:block">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-border bg-secondary/50 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      <th className="px-6 py-4">Name</th>
+                      <th className="px-6 py-4">Category</th>
+                      <th className="px-6 py-4">Stock</th>
+                      <th className="px-6 py-4">Threshold</th>
+                      <th className="px-6 py-4">Selling Price</th>
+                      <th className="px-6 py-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border text-sm text-foreground">
+                    {filteredLowStockProducts.map((p) => {
+                      const cat = categories.find(c => c.id === p.category_id);
+                      return (
+                        <tr key={p.id} className="hover:bg-secondary/25 transition-all">
+                          <td className="px-6 py-4 font-medium">{p.name}</td>
+                          <td className="px-6 py-4">
+                            {cat ? (
+                              <span
+                                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium border"
+                                style={{
+                                  backgroundColor: `${cat.color}15`,
+                                  borderColor: `${cat.color}30`,
+                                  color: cat.color
+                                }}
+                              >
+                                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: cat.color }} />
+                                {cat.name}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">Uncategorised</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex items-center rounded-lg border px-2 py-0.5 text-xs font-medium ${getStockBadgeColor(Number(p.stock_quantity), p.low_stock_threshold !== undefined ? Number(p.low_stock_threshold) : 5)}`}>
+                              {p.stock_quantity}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-xs font-mono text-muted-foreground">
+                            {p.low_stock_threshold !== undefined ? p.low_stock_threshold : 5}
+                          </td>
+                          <td className="px-6 py-4 font-mono font-semibold">
+                            {currencySymbol}{Number(p.selling_price).toFixed(2)}
+                          </td>
+                          <td className="px-6 py-4 text-right space-x-2">
+                            <button
+                              onClick={() => openEditProduct(p)}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
+                            >
+                              <Edit2 size={14} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteProduct(p.id, p.name)}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-destructive/20 text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="md:hidden divide-y divide-border">
+                {filteredLowStockProducts.map((p) => {
+                  const cat = categories.find(c => c.id === p.category_id);
+                  return (
+                    <div key={p.id} className="p-4 space-y-2">
+                      <div className="flex items-start justify-between">
+                        <div className="min-w-0 flex-1">
+                          <div className="font-semibold text-sm text-foreground">{p.name}</div>
+                          {cat && (
+                            <span
+                              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium border mt-1"
+                              style={{
+                                backgroundColor: `${cat.color}15`,
+                                borderColor: `${cat.color}30`,
+                                color: cat.color
+                              }}
+                            >
+                              <span className="h-1 w-1 rounded-full" style={{ backgroundColor: cat.color }} />
+                              {cat.name}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex gap-1.5 shrink-0">
+                          <button
+                            onClick={() => openEditProduct(p)}
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
+                          >
+                            <Edit2 size={12} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteProduct(p.id, p.name)}
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-destructive/20 text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs">
+                        <span className={`inline-flex items-center rounded-lg border px-2 py-0.5 font-medium ${getStockBadgeColor(Number(p.stock_quantity), p.low_stock_threshold !== undefined ? Number(p.low_stock_threshold) : 5)}`}>
+                          Stock: {p.stock_quantity}
+                        </span>
+                        <span className="text-muted-foreground">Threshold: {p.low_stock_threshold !== undefined ? p.low_stock_threshold : 5}</span>
+                        <span className="font-mono font-semibold text-foreground">{currencySymbol}{Number(p.selling_price).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* CATEGORY DIALOG MODAL */}
       {catModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
@@ -676,7 +869,7 @@ export default function InventoryPage() {
             <h3 className="text-lg font-bold text-foreground">
               {editingProduct ? 'Edit Product' : 'Add New Product'}
             </h3>
-            
+
             {categories.length === 0 && (
               <div className="mt-4 rounded-xl bg-amber-500/10 border border-amber-500/20 p-4 text-xs text-amber-500 flex items-center gap-2">
                 <AlertTriangle size={16} />

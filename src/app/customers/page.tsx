@@ -38,7 +38,7 @@ export default function CustomersPage() {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<'all' | 'cleared' | 'unpaid'>('all');
-  
+
   // Modals state
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -206,49 +206,43 @@ export default function CustomersPage() {
       <div className="flex items-center gap-2 flex-wrap">
         <button
           onClick={() => setPaymentFilter('all')}
-          className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold transition-all border ${
-            paymentFilter === 'all'
+          className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold transition-all border ${paymentFilter === 'all'
               ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20'
               : 'bg-card text-muted-foreground border-border hover:bg-secondary hover:text-foreground'
-          }`}
+            }`}
         >
           <Users size={14} />
           All Customers
-          <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-            paymentFilter === 'all' ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-secondary text-muted-foreground'
-          }`}>
+          <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${paymentFilter === 'all' ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-secondary text-muted-foreground'
+            }`}>
             {allCount}
           </span>
         </button>
         <button
           onClick={() => setPaymentFilter('cleared')}
-          className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold transition-all border ${
-            paymentFilter === 'cleared'
+          className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold transition-all border ${paymentFilter === 'cleared'
               ? 'bg-emerald-500 text-white border-emerald-500 shadow-md shadow-emerald-500/20'
               : 'bg-card text-muted-foreground border-border hover:bg-emerald-500/10 hover:text-emerald-500 hover:border-emerald-500/30'
-          }`}
+            }`}
         >
           <CheckCircle size={14} />
           Fully Cleared
-          <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-            paymentFilter === 'cleared' ? 'bg-white/20 text-white' : 'bg-emerald-500/10 text-emerald-500'
-          }`}>
+          <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${paymentFilter === 'cleared' ? 'bg-white/20 text-white' : 'bg-emerald-500/10 text-emerald-500'
+            }`}>
             {clearedCount}
           </span>
         </button>
         <button
           onClick={() => setPaymentFilter('unpaid')}
-          className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold transition-all border ${
-            paymentFilter === 'unpaid'
+          className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold transition-all border ${paymentFilter === 'unpaid'
               ? 'bg-red-500 text-white border-red-500 shadow-md shadow-red-500/20'
               : 'bg-card text-muted-foreground border-border hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30'
-          }`}
+            }`}
         >
           <AlertTriangle size={14} />
           Unpaid Due
-          <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-            paymentFilter === 'unpaid' ? 'bg-white/20 text-white' : 'bg-red-500/10 text-red-500'
-          }`}>
+          <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${paymentFilter === 'unpaid' ? 'bg-white/20 text-white' : 'bg-red-500/10 text-red-500'
+            }`}>
             {unpaidCount}
           </span>
         </button>
@@ -321,11 +315,10 @@ export default function CustomersPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div
-                        className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-0.5 text-xs font-medium font-mono ${
-                          Number(c.total_pending) > 0
+                        className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-0.5 text-xs font-medium font-mono ${Number(c.total_pending) > 0
                             ? 'bg-red-500/10 text-red-500 border-red-500/20'
                             : 'bg-secondary text-muted-foreground border-border'
-                        }`}
+                          }`}
                       >
                         <CreditCard size={12} />
                         {currencySymbol}{Number(c.total_pending).toFixed(2)}
@@ -373,8 +366,16 @@ export default function CustomersPage() {
                           <Phone size={10} className="text-primary" /> {c.phone}
                         </span>
                       )}
+                      {c.email && (
+                        <span className="inline-flex items-center gap-1 truncate max-w-[200px]">
+                          <Mail size={10} className="text-primary" /> {c.email}
+                        </span>
+                      )}
+                      {!c.phone && !c.email && (
+                        <span className="italic text-[10px]">No contact info</span>
+                      )}
                       {c.address && (
-                        <span className="inline-flex items-center gap-1">
+                        <span className="inline-flex items-center gap-1 mt-0.5">
                           <MapPin size={10} /> {c.address}
                         </span>
                       )}
@@ -564,13 +565,12 @@ export default function CustomersPage() {
                               {currencySymbol}{Number(b.grand_total).toFixed(2)}
                             </div>
                             <span
-                              className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-medium mt-1 ${
-                                b.status === 'Paid'
+                              className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-medium mt-1 ${b.status === 'Paid'
                                   ? 'bg-emerald-500/10 text-emerald-500'
                                   : b.status === 'Partial'
-                                  ? 'bg-amber-500/10 text-amber-500'
-                                  : 'bg-red-500/10 text-red-500'
-                              }`}
+                                    ? 'bg-amber-500/10 text-amber-500'
+                                    : 'bg-red-500/10 text-red-500'
+                                }`}
                             >
                               {b.status}
                             </span>

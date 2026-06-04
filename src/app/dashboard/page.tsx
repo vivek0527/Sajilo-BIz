@@ -237,11 +237,10 @@ export default function DashboardPage() {
             </div>
             <p className="text-[10px] text-muted-foreground hidden sm:block">Products below alert thresholds</p>
           </div>
-          <div className={`hidden sm:flex h-10 w-10 items-center justify-center rounded-xl border ${
-            lowStockCount > 0
+          <div className={`hidden sm:flex h-10 w-10 items-center justify-center rounded-xl border ${lowStockCount > 0
               ? 'bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse'
               : 'bg-secondary text-muted-foreground border-border'
-          }`}>
+            }`}>
             <AlertTriangle size={20} />
           </div>
         </div>
@@ -337,54 +336,53 @@ export default function DashboardPage() {
               <>
                 {/* Desktop Table */}
                 <div className="overflow-x-auto hidden sm:block">
-                <table className="w-full text-left border-collapse text-sm">
-                  <thead>
-                    <tr className="border-b border-border bg-secondary/10 text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">
-                      <th className="px-6 py-3">Bill No.</th>
-                      <th className="px-6 py-3">Customer</th>
-                      <th className="px-6 py-3">Grand Total</th>
-                      <th className="px-6 py-3">Status</th>
-                      <th className="px-6 py-3 text-right">View</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {bills.slice(0, 5).map((b) => (
-                      <tr key={b.id} className="hover:bg-secondary/20 border-b border-border/50 transition-all">
-                        <td className="px-6 py-4 font-mono font-semibold">Bill #{b.bill_number}</td>
-                        <td className="px-6 py-4">{b.customer?.name || 'Guest Client'}</td>
-                        <td className="px-6 py-4 font-mono font-semibold">{currencySymbol}{Number(b.grand_total).toFixed(2)}</td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-block rounded px-2 py-0.5 text-xs font-semibold ${
-                            b.status === 'Paid'
-                              ? 'bg-emerald-500/10 text-emerald-500'
-                              : b.status === 'Partial'
-                              ? 'bg-amber-500/10 text-amber-500'
-                              : 'bg-red-500/10 text-red-500'
-                          }`}>
-                            {b.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right space-x-2">
-                          <Link
-                            href={`/billing/${b.id}`}
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
-                            title="View Details"
-                          >
-                            <ArrowRight size={12} />
-                          </Link>
-                          <Link
-                            href={`/billing/${b.id}/edit`}
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-primary/20 text-primary hover:bg-primary/10"
-                            title="Edit Invoice"
-                          >
-                            <Edit2 size={12} />
-                          </Link>
-                        </td>
+                  <table className="w-full text-left border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-secondary/10 text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">
+                        <th className="px-6 py-3">Bill No.</th>
+                        <th className="px-6 py-3">Customer</th>
+                        <th className="px-6 py-3">Grand Total</th>
+                        <th className="px-6 py-3">Status</th>
+                        <th className="px-6 py-3 text-right">View</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {bills.slice(0, 5).map((b) => (
+                        <tr key={b.id} className="hover:bg-secondary/20 border-b border-border/50 transition-all">
+                          <td className="px-6 py-4 font-mono font-semibold">Bill #{b.bill_number}</td>
+                          <td className="px-6 py-4">{b.customer?.name || 'Guest Client'}</td>
+                          <td className="px-6 py-4 font-mono font-semibold">{currencySymbol}{Number(b.grand_total).toFixed(2)}</td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-block rounded px-2 py-0.5 text-xs font-semibold ${b.status === 'Paid'
+                                ? 'bg-emerald-500/10 text-emerald-500'
+                                : b.status === 'Partial'
+                                  ? 'bg-amber-500/10 text-amber-500'
+                                  : 'bg-red-500/10 text-red-500'
+                              }`}>
+                              {b.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right space-x-2">
+                            <Link
+                              href={`/billing/${b.id}`}
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
+                              title="View Details"
+                            >
+                              <ArrowRight size={12} />
+                            </Link>
+                            <Link
+                              href={`/billing/${b.id}/edit`}
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-primary/20 text-primary hover:bg-primary/10"
+                              title="Edit Invoice"
+                            >
+                              <Edit2 size={12} />
+                            </Link>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
 
                 {/* Mobile Card View */}
                 <div className="sm:hidden divide-y divide-border/50">
@@ -393,13 +391,12 @@ export default function DashboardPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <span className="font-mono font-semibold text-sm">#{b.bill_number}</span>
-                          <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-                            b.status === 'Paid'
+                          <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${b.status === 'Paid'
                               ? 'bg-emerald-500/10 text-emerald-500'
                               : b.status === 'Partial'
-                              ? 'bg-amber-500/10 text-amber-500'
-                              : 'bg-red-500/10 text-red-500'
-                          }`}>
+                                ? 'bg-amber-500/10 text-amber-500'
+                                : 'bg-red-500/10 text-red-500'
+                            }`}>
                             {b.status}
                           </span>
                         </div>
@@ -445,11 +442,10 @@ export default function DashboardPage() {
                       <span className="text-[10px] text-muted-foreground font-mono">Unit: {p.unit}</span>
                     </div>
                     <div className="text-right">
-                      <span className={`inline-block font-mono font-bold text-xs px-2 py-0.5 rounded ${
-                        Number(p.stock_quantity) === 0
+                      <span className={`inline-block font-mono font-bold text-xs px-2 py-0.5 rounded ${Number(p.stock_quantity) === 0
                           ? 'bg-red-500/10 text-red-500 border border-red-500/20'
                           : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-                      }`}>
+                        }`}>
                         Qty: {p.stock_quantity}
                       </span>
                     </div>

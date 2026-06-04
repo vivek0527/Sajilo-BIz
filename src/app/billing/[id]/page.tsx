@@ -265,9 +265,9 @@ export default function BillDetailPage() {
                   {bill.status}
                 </span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Payment Method:</span>
-                <span className="font-semibold">{bill.payment_method}</span>
+              <div className="flex justify-between text-sm items-center">
+                <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Contact Info</span>
+                <span className="font-bold bg-secondary/50 px-2 py-0.5 rounded-md border border-border/50 text-xs">{bill.customer?.phone || 'No Contact Info'}</span>
               </div>
               <div className="flex justify-between text-sm border-t border-border pt-3">
                 <span className="text-muted-foreground">Amount Paid:</span>

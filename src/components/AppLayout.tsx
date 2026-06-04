@@ -78,6 +78,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   else if (pathname.startsWith('/billing/')) pageTitle = 'Invoice Details';
   else if (pathname.startsWith('/customers')) pageTitle = 'Customer Relations';
   else if (pathname.startsWith('/expenses')) pageTitle = 'Expense Tracker';
+  else if (pathname.startsWith('/accounts')) pageTitle = 'Accounts & Analytics';
   else if (pathname.startsWith('/settings')) pageTitle = 'Shop Settings';
 
   return (
