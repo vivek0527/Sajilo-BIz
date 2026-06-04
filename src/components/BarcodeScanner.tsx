@@ -172,8 +172,8 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
       )}
 
       {/* Scanner View */}
-      <div className="relative bg-black w-full !h-auto">
-        <div id={containerId} className="w-full !h-auto [&_video]:block [&_video]:w-full [&_video]:!h-auto" />
+      <div className="relative bg-black w-full h-[140px] sm:h-[180px] overflow-hidden">
+        <div id={containerId} className="w-full h-full [&_video]:block [&_video]:w-full [&_video]:h-full [&_video]:object-cover [&_canvas]:block [&_canvas]:w-full [&_canvas]:h-full [&_canvas]:object-cover" />
 
         {isStarting && !error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 gap-2 min-h-[160px]">
