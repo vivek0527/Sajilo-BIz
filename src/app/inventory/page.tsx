@@ -7,6 +7,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { dbClient } from '@/lib/db';
 import { Category, Product, ShopSettings } from '@/lib/types';
+import dynamic from 'next/dynamic';
+
+const BarcodeScanner = dynamic(() => import('@/components/BarcodeScanner'), { ssr: false });
 import {
   Package,
   FolderOpen,
@@ -18,7 +21,8 @@ import {
   Loader2,
   AlertTriangle,
   FileSpreadsheet,
-  X
+  X,
+  Camera
 } from 'lucide-react';
 
 // Form Zod Schemas
@@ -54,6 +58,7 @@ export default function InventoryPage() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [prodModalOpen, setProdModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [barcodeScannerOpen, setBarcodeScannerOpen] = useState(false);
 
   // Queries
   const { data: settings } = useQuery<ShopSettings>({
@@ -754,12 +759,32 @@ export default function InventoryPage() {
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-foreground">Barcode (optional)</label>
-                  <input
-                    type="text"
-                    placeholder="Scan or type barcode"
-                    {...prodForm.register('barcode')}
-                    className="block w-full rounded-xl border border-border bg-background/50 px-3 py-2 text-sm focus:border-primary focus:outline-none font-mono"
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Scan or type barcode"
+                      {...prodForm.register('barcode')}
+                      className="block w-full rounded-xl border border-border bg-background/50 px-3 py-2 text-sm focus:border-primary focus:outline-none font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setBarcodeScannerOpen(!barcodeScannerOpen)}
+                      className="flex items-center gap-1.5 shrink-0 rounded-xl bg-primary/10 border border-primary/20 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/20 transition-all"
+                    >
+                      <Camera size={14} /> {barcodeScannerOpen ? 'Close' : 'Scan'}
+                    </button>
+                  </div>
+                  {barcodeScannerOpen && (
+                    <div className="border border-border rounded-xl overflow-hidden bg-card mt-2">
+                      <BarcodeScanner
+                        onScan={(barcode) => {
+                          prodForm.setValue('barcode', barcode);
+                          setBarcodeScannerOpen(false);
+                        }}
+                        onClose={() => setBarcodeScannerOpen(false)}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 

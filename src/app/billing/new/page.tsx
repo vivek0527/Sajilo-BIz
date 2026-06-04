@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { dbClient } from '@/lib/db';
 import { Product, Customer, ShopSettings, BillItem } from '@/lib/types';
+import dynamic from 'next/dynamic';
+
+const BarcodeScanner = dynamic(() => import('@/components/BarcodeScanner'), { ssr: false });
 import {
   Receipt,
   Search,
@@ -19,7 +22,8 @@ import {
   AlertCircle,
   FileText,
   Phone,
-  MapPin
+  MapPin,
+  Camera
 } from 'lucide-react';
 
 interface LocalLineItem {
@@ -64,11 +68,12 @@ export default function NewBillPage() {
   const [lineItems, setLineItems] = useState<LocalLineItem[]>([]);
   const [productSearch, setProductSearch] = useState('');
   const [customItemName, setCustomItemName] = useState('');
-  const [customItemPrice, setCustomItemPrice] = useState(0);
+  const [customItemPrice, setCustomItemPrice] = useState('');
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   // Bill level fields
   const [taxPercentage, setTaxPercentage] = useState<number>(0);
-  const [amountPaid, setAmountPaid] = useState<number>(0);
+  const [amountPaid, setAmountPaid] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Card' | 'UPI' | 'Due' | 'Mixed'>('Cash');
   const [notes, setNotes] = useState('');
 
@@ -124,7 +129,8 @@ export default function NewBillPage() {
   const subtotal = lineItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
   const taxAmount = subtotal * (taxPercentage / 100);
   const grandTotal = subtotal + taxAmount;
-  const pendingAmount = Math.max(0, grandTotal - amountPaid);
+  const parsedAmountPaid = Number(amountPaid) || 0;
+  const pendingAmount = Math.max(0, grandTotal - parsedAmountPaid);
 
   // Amount paid is left for the user to fill manually (default 0)
 
@@ -158,17 +164,31 @@ export default function NewBillPage() {
     setProductSearch('');
   };
 
+  const handleBarcodeScan = (barcode: string) => {
+    const matchedProduct = products.find(
+      (p) => p.barcode && p.barcode.trim() === barcode.trim()
+    );
+    if (matchedProduct) {
+      handleAddProduct(matchedProduct);
+    } else {
+      // Put the scanned barcode into the search field so the user can see it
+      setProductSearch(barcode);
+      setScannerOpen(false);
+      alert(`No product found with barcode "${barcode}". You can search manually or add it as a custom item.`);
+    }
+  };
+
   const handleAddCustomItem = () => {
-    if (!customItemName.trim() || customItemPrice <= 0) return;
+    if (!customItemName.trim() || (Number(customItemPrice) || 0) <= 0) return;
     const localId = 'custom_' + Date.now();
     setLineItems([...lineItems, {
       id: localId,
       item_name: customItemName,
       quantity: 1,
-      unit_price: customItemPrice,
+      unit_price: Number(customItemPrice),
     }]);
     setCustomItemName('');
-    setCustomItemPrice(0);
+    setCustomItemPrice('');
   };
 
   const handleUpdateQuantity = (id: string, qty: number) => {
@@ -220,9 +240,9 @@ export default function NewBillPage() {
         tax_percentage: Number(taxPercentage),
         tax_amount: Number(taxAmount.toFixed(2)),
         grand_total: Number(grandTotal.toFixed(2)),
-        amount_paid: Number(amountPaid),
+        amount_paid: parsedAmountPaid,
         pending_amount: Number(pendingAmount.toFixed(2)),
-        status: (amountPaid >= grandTotal ? 'Paid' : amountPaid > 0 ? 'Partial' : 'Pending') as any,
+        status: (parsedAmountPaid >= grandTotal ? 'Paid' : parsedAmountPaid > 0 ? 'Partial' : 'Pending') as any,
         payment_method: paymentMethod,
         notes: notes || undefined,
       };
@@ -279,12 +299,13 @@ export default function NewBillPage() {
                   <User size={18} />
                 </span>
                 <input
-                  type="text"
+                  type="search"
                   placeholder="Customer name (or leave blank for Guest)"
                   value={customerName}
                   onChange={(e) => handleNameChange(e.target.value)}
                   onFocus={() => setShowSuggestions(true)}
-                  className="block w-full rounded-xl border border-border bg-background/50 pl-10 pr-3 py-2.5 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  autoComplete="off"
+                  className="block w-full rounded-xl border border-border bg-background/50 pl-10 pr-3 py-2.5 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary search-no-clear"
                 />
 
                 {/* Suggestions Dropdown */}
@@ -324,14 +345,15 @@ export default function NewBillPage() {
                   <Phone size={18} />
                 </span>
                 <input
-                  type="text"
+                  type="search"
                   placeholder="Phone number (Used to find/create customer)"
                   value={customerPhone}
                   onChange={(e) => {
                     setCustomerPhone(e.target.value);
                     setSelectedCustomerId('');
                   }}
-                  className="block w-full rounded-xl border border-border bg-background/50 pl-10 pr-3 py-2.5 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+                  autoComplete="off"
+                  className="block w-full rounded-xl border border-border bg-background/50 pl-10 pr-3 py-2.5 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono search-no-clear"
                 />
               </div>
 
@@ -341,14 +363,15 @@ export default function NewBillPage() {
                   <MapPin size={18} />
                 </span>
                 <input
-                  type="text"
+                  type="search"
                   placeholder="Address"
                   value={customerAddress}
                   onChange={(e) => {
                     setCustomerAddress(e.target.value);
                     setSelectedCustomerId('');
                   }}
-                  className="block w-full rounded-xl border border-border bg-background/50 pl-10 pr-3 py-2.5 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  autoComplete="off"
+                  className="block w-full rounded-xl border border-border bg-background/50 pl-10 pr-3 py-2.5 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary search-no-clear"
                 />
               </div>
 
@@ -374,7 +397,25 @@ export default function NewBillPage() {
 
           {/* Product Lookup Card */}
           <div className="glass-panel rounded-2xl p-4 sm:p-6 space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">Products Registry Search</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground">Products Registry Search</h3>
+              <button
+                type="button"
+                onClick={() => setScannerOpen(!scannerOpen)}
+                className="flex items-center gap-1.5 rounded-xl bg-primary/10 border border-primary/20 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-all"
+              >
+                <Camera size={14} /> {scannerOpen ? 'Close Scanner' : 'Scan Barcode'}
+              </button>
+            </div>
+
+            {scannerOpen && (
+              <div className="border border-border rounded-xl overflow-hidden bg-card mt-2">
+                <BarcodeScanner
+                  onScan={handleBarcodeScan}
+                  onClose={() => setScannerOpen(false)}
+                />
+              </div>
+            )}
 
             <div className="relative">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
@@ -424,8 +465,8 @@ export default function NewBillPage() {
                 <input
                   type="number"
                   placeholder="Unit Price"
-                  value={customItemPrice || ''}
-                  onChange={(e) => setCustomItemPrice(Number(e.target.value))}
+                  value={customItemPrice}
+                  onChange={(e) => setCustomItemPrice(e.target.value)}
                   className="rounded-xl border border-border bg-background px-3 py-2 text-xs focus:outline-none font-mono"
                 />
                 <button
@@ -651,7 +692,8 @@ export default function NewBillPage() {
                   type="number"
                   step="0.01"
                   value={amountPaid}
-                  onChange={(e) => setAmountPaid(Number(e.target.value))}
+                  onChange={(e) => setAmountPaid(e.target.value)}
+                  placeholder="0"
                   className="block w-full rounded-xl border border-border bg-background px-3 py-2.5 font-mono text-lg font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>

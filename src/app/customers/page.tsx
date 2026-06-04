@@ -21,7 +21,9 @@ import {
   X,
   ArrowRight,
   TrendingUp,
-  CreditCard
+  CreditCard,
+  CheckCircle,
+  AlertTriangle
 } from 'lucide-react';
 
 const customerSchema = z.object({
@@ -35,6 +37,7 @@ type CustomerFormInput = z.infer<typeof customerSchema>;
 export default function CustomersPage() {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
+  const [paymentFilter, setPaymentFilter] = useState<'all' | 'cleared' | 'unpaid'>('all');
   
   // Modals state
   const [modalOpen, setModalOpen] = useState(false);
@@ -136,8 +139,26 @@ export default function CustomersPage() {
   // Filter logic
   const filteredCustomers = customers.filter(c => {
     const query = searchQuery.toLowerCase();
-    return c.name.toLowerCase().includes(query) || (c.phone && c.phone.includes(query));
+    const matchesSearch = c.name.toLowerCase().includes(query) || (c.phone && c.phone.includes(query));
+    if (!matchesSearch) return false;
+    if (paymentFilter === 'cleared') return Number(c.total_pending) <= 0;
+    if (paymentFilter === 'unpaid') return Number(c.total_pending) > 0;
+    return true;
   });
+
+  // Counts for filter badges
+  const allCount = customers.filter(c => {
+    const query = searchQuery.toLowerCase();
+    return c.name.toLowerCase().includes(query) || (c.phone && c.phone.includes(query));
+  }).length;
+  const clearedCount = customers.filter(c => {
+    const query = searchQuery.toLowerCase();
+    return (c.name.toLowerCase().includes(query) || (c.phone && c.phone.includes(query))) && Number(c.total_pending) <= 0;
+  }).length;
+  const unpaidCount = customers.filter(c => {
+    const query = searchQuery.toLowerCase();
+    return (c.name.toLowerCase().includes(query) || (c.phone && c.phone.includes(query))) && Number(c.total_pending) > 0;
+  }).length;
 
   // Get bills for selected customer in history ledger
   const customerBills = bills.filter(b => b.customer_id === activeCustomerForHistory?.id);
@@ -179,6 +200,58 @@ export default function CustomersPage() {
           onChange={(e) => setSearchQuery(e.target.value)}
           className="block w-full rounded-xl border border-border bg-card px-10 py-2.5 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none"
         />
+      </div>
+
+      {/* Payment Status Filter Tabs */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          onClick={() => setPaymentFilter('all')}
+          className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold transition-all border ${
+            paymentFilter === 'all'
+              ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20'
+              : 'bg-card text-muted-foreground border-border hover:bg-secondary hover:text-foreground'
+          }`}
+        >
+          <Users size={14} />
+          All Customers
+          <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+            paymentFilter === 'all' ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-secondary text-muted-foreground'
+          }`}>
+            {allCount}
+          </span>
+        </button>
+        <button
+          onClick={() => setPaymentFilter('cleared')}
+          className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold transition-all border ${
+            paymentFilter === 'cleared'
+              ? 'bg-emerald-500 text-white border-emerald-500 shadow-md shadow-emerald-500/20'
+              : 'bg-card text-muted-foreground border-border hover:bg-emerald-500/10 hover:text-emerald-500 hover:border-emerald-500/30'
+          }`}
+        >
+          <CheckCircle size={14} />
+          Fully Cleared
+          <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+            paymentFilter === 'cleared' ? 'bg-white/20 text-white' : 'bg-emerald-500/10 text-emerald-500'
+          }`}>
+            {clearedCount}
+          </span>
+        </button>
+        <button
+          onClick={() => setPaymentFilter('unpaid')}
+          className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold transition-all border ${
+            paymentFilter === 'unpaid'
+              ? 'bg-red-500 text-white border-red-500 shadow-md shadow-red-500/20'
+              : 'bg-card text-muted-foreground border-border hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30'
+          }`}
+        >
+          <AlertTriangle size={14} />
+          Unpaid Due
+          <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+            paymentFilter === 'unpaid' ? 'bg-white/20 text-white' : 'bg-red-500/10 text-red-500'
+          }`}>
+            {unpaidCount}
+          </span>
+        </button>
       </div>
 
       {/* Customer Listing */}
@@ -359,12 +432,13 @@ export default function CustomersPage() {
             <h3 className="text-lg font-bold text-foreground">
               {editingCustomer ? 'Edit Customer Profile' : 'Add New Customer'}
             </h3>
-            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 mt-4">
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 mt-4" autoComplete="off">
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-foreground">Customer Name *</label>
                 <input
                   type="text"
                   placeholder="e.g. Ramesh Sharma"
+                  autoComplete="nope"
                   {...form.register('name')}
                   className="block w-full rounded-xl border border-border bg-background/50 px-3 py-2 text-sm focus:border-primary focus:outline-none"
                 />
@@ -378,6 +452,7 @@ export default function CustomersPage() {
                 <input
                   type="text"
                   placeholder="e.g. 9876543210"
+                  autoComplete="nope"
                   {...form.register('phone')}
                   className="block w-full rounded-xl border border-border bg-background/50 px-3 py-2 text-sm focus:border-primary focus:outline-none font-mono"
                 />
@@ -388,6 +463,7 @@ export default function CustomersPage() {
                 <input
                   type="email"
                   placeholder="e.g. ramesh@example.com"
+                  autoComplete="nope"
                   {...form.register('email')}
                   className="block w-full rounded-xl border border-border bg-background/50 px-3 py-2 text-sm focus:border-primary focus:outline-none"
                 />
@@ -401,6 +477,7 @@ export default function CustomersPage() {
                 <textarea
                   placeholder="Street, City, Zip Code"
                   rows={2}
+                  autoComplete="nope"
                   {...form.register('address')}
                   className="block w-full rounded-xl border border-border bg-background/50 px-3 py-2 text-sm focus:border-primary focus:outline-none"
                 />

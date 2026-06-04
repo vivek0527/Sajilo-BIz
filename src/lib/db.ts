@@ -47,7 +47,7 @@ const mockAuth = {
   signUp: async (email: string, password: string, shopName: string) => {
     await new Promise((resolve) => setTimeout(resolve, 500));
     const users = getStorageItem<any[]>(KEYS.USERS, []);
-    
+
     if (users.find(u => u.email === email)) {
       throw new Error('User already exists');
     }
@@ -135,9 +135,9 @@ export const dbClient = {
           });
           if (settingsError) console.error('Error creating shop settings:', settingsError);
         }
-        return { 
-          user: data.user ? { id: data.user.id, email: data.user.email || '', shop_name: shopName } : null, 
-          error: null 
+        return {
+          user: data.user ? { id: data.user.id, email: data.user.email || '', shop_name: shopName } : null,
+          error: null
         };
       }
       return mockAuth.signUp(email, password, shopName);
@@ -147,9 +147,9 @@ export const dbClient = {
       if (!isMock && supabase) {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        return { 
-          user: data.user ? { id: data.user.id, email: data.user.email || '' } : null, 
-          error: null 
+        return {
+          user: data.user ? { id: data.user.id, email: data.user.email || '' } : null,
+          error: null
         };
       }
       return mockAuth.signIn(email, password);

@@ -127,3 +127,15 @@
 .print-only {
   display: none;
 }
+
+/* Hide default clear button on search inputs (used to prevent browser autofill) */
+.search-no-clear::-webkit-search-decoration,
+.search-no-clear::-webkit-search-cancel-button,
+.search-no-clear::-webkit-search-results-button,
+.search-no-clear::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  display: none;
+}
+.search-no-clear {
+  -moz-appearance: textfield;
+}
