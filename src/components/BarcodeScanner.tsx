@@ -68,7 +68,13 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
         { facingMode: facing },
         {
           fps: 15,
-          qrbox: { width: 260, height: 140 },
+          qrbox: (width, height) => {
+            // Keep it small and responsive on mobile viewports
+            return {
+              width: Math.min(width * 0.85, 260),
+              height: Math.min(height * 0.7, 130),
+            };
+          },
           aspectRatio: 1.7777778, // Standard 16:9 aspect ratio
           disableFlip: true, // Do not flip images, to keep EAN scanning readable
         },
@@ -136,7 +142,7 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
   };
 
   return (
-    <div className="relative w-full max-w-[340px] rounded-xl border border-border bg-black shadow-md overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+    <div className="relative w-full max-w-[280px] sm:max-w-[340px] rounded-xl border border-border bg-black shadow-md overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
       {/* Floating Controls (Top Right) */}
       <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5 bg-black/40 backdrop-blur-sm rounded-lg p-1">
         <button
@@ -166,8 +172,8 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
       )}
 
       {/* Scanner View */}
-      <div className="relative bg-black w-full">
-        <div id={containerId} className="w-full [&_video]:block [&_video]:w-full [&_video]:h-auto" />
+      <div className="relative bg-black w-full !h-auto">
+        <div id={containerId} className="w-full !h-auto [&_video]:block [&_video]:w-full [&_video]:!h-auto" />
 
         {isStarting && !error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 gap-2 min-h-[160px]">
