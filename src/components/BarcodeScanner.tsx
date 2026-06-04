@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeScannerState, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { Camera, X, SwitchCamera, Loader2, Zap } from 'lucide-react';
 
 interface BarcodeScannerProps {
@@ -67,14 +67,25 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
         container.innerHTML = '';
       }
 
-      const scanner = new Html5Qrcode(containerId);
+      const scanner = new Html5Qrcode(containerId, {
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.QR_CODE
+        ],
+        verbose: false
+      });
       scannerRef.current = scanner;
 
       await scanner.start(
         { facingMode: facing },
         {
-          fps: 15,
-          qrbox: (width, height) => {
+          fps: 30, // 30 FPS scanning frequency for immediate scans
+          qrbox: (width: number, height: number) => {
             // Keep it small and responsive on mobile viewports
             return {
               width: Math.min(width * 0.85, 260),
@@ -83,7 +94,10 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
           },
           aspectRatio: 1.7777778, // Standard 16:9 aspect ratio
           disableFlip: true, // Do not flip images, to keep EAN scanning readable
-        },
+          experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true // Native hardware acceleration (highly performs on Chrome/Android)
+          }
+        } as any,
         (decodedText) => {
           if (!mountedRef.current || seq !== scanSeqRef.current) return;
           // Debounce: prevent duplicate scans

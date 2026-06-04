@@ -395,7 +395,12 @@ export default function ExpensesPage() {
                     type="number"
                     step="0.01"
                     placeholder="0.00"
-                    {...form.register('amount', { valueAsNumber: true })}
+                    {...form.register('amount', {
+                      valueAsNumber: true,
+                      onChange: (e) => {
+                        e.target.value = e.target.value.replace(/^0+(?=\d)/, '');
+                      }
+                    })}
                     className="block w-full rounded-xl border border-border bg-background/50 px-3 py-2 text-sm focus:border-primary focus:outline-none font-mono"
                   />
                   {form.formState.errors.amount && (

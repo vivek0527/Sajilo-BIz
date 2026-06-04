@@ -218,7 +218,12 @@ export default function SettingsPage() {
                   <input
                     type="number"
                     step="0.01"
-                    {...register('default_tax_percentage', { valueAsNumber: true })}
+                    {...register('default_tax_percentage', {
+                      valueAsNumber: true,
+                      onChange: (e) => {
+                        e.target.value = e.target.value.replace(/^0+(?=\d)/, '');
+                      }
+                    })}
                     className="block w-full rounded-xl border border-border bg-background/50 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                   {errors.default_tax_percentage && <p className="text-xs text-destructive">{errors.default_tax_percentage.message}</p>}

@@ -23,6 +23,7 @@ export interface Product {
   stock_quantity: number;
   unit: string;
   barcode?: string;
+  low_stock_threshold?: number;
   created_by: string;
   created_at: string;
 }

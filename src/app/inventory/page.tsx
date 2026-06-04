@@ -35,13 +35,26 @@ type CategoryFormInput = z.infer<typeof categorySchema>;
 
 const productSchema = z.object({
   name: z.string().min(2, 'Product name must be at least 2 characters'),
-  description: z.string().optional(),
   category_id: z.string().uuid().or(z.literal('')),
-  selling_price: z.number().min(0.01, 'Selling price must be greater than 0'),
-  cost_price: z.number().min(0, 'Cost price cannot be negative').optional(),
-  stock_quantity: z.number().min(0, 'Stock quantity cannot be negative'),
+  selling_price: z.preprocess(
+    (val) => (val === '' || val === undefined || val === null || isNaN(Number(val)) ? undefined : Number(val)),
+    z.number({ invalid_type_error: 'Selling price is required' }).min(0.01, 'Selling price must be greater than 0')
+  ),
+  cost_price: z.preprocess(
+    (val) => (val === '' || val === undefined || val === null || isNaN(Number(val)) ? undefined : Number(val)),
+    z.number().min(0, 'Cost price cannot be negative').optional()
+  ),
+  stock_quantity: z.preprocess(
+    (val) => (val === '' || val === undefined || val === null || isNaN(Number(val)) ? undefined : Number(val)),
+    z.number({ invalid_type_error: 'Stock quantity is required' }).min(0, 'Stock quantity cannot be negative')
+  ),
   unit: z.string().min(1, 'Unit is required'),
   barcode: z.string().optional(),
+  low_stock_threshold: z.preprocess((val) => (val === '' || val === undefined || val === null ? 5 : Number(val)), z.number().min(0, 'Low stock threshold cannot be negative')).default(5),
+  discount_percentage: z.preprocess(
+    (val) => (val === '' || val === undefined || val === null || isNaN(Number(val)) ? undefined : Number(val)),
+    z.number().optional()
+  ),
 });
 type ProductFormInput = z.infer<typeof productSchema>;
 
@@ -104,10 +117,13 @@ export default function InventoryPage() {
 
   // Mutators for Products
   const createProductMutation = useMutation({
-    mutationFn: (data: ProductFormInput) => dbClient.products.create({
-      ...data,
-      category_id: data.category_id || undefined,
-    }),
+    mutationFn: (data: ProductFormInput) => {
+      const { discount_percentage, ...rest } = data;
+      return dbClient.products.create({
+        ...rest,
+        category_id: rest.category_id || undefined,
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       setProdModalOpen(false);
@@ -115,11 +131,13 @@ export default function InventoryPage() {
   });
 
   const updateProductMutation = useMutation({
-    mutationFn: (data: { id: string; input: ProductFormInput }) =>
-      dbClient.products.update(data.id, {
-        ...data.input,
-        category_id: data.input.category_id || undefined,
-      }),
+    mutationFn: (data: { id: string; input: ProductFormInput }) => {
+      const { discount_percentage, ...rest } = data.input;
+      return dbClient.products.update(data.id, {
+        ...rest,
+        category_id: rest.category_id || undefined,
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       setProdModalOpen(false);
@@ -144,13 +162,14 @@ export default function InventoryPage() {
     resolver: zodResolver(productSchema),
     defaultValues: {
       name: '',
-      description: '',
       category_id: '',
-      selling_price: 0,
-      cost_price: 0,
-      stock_quantity: 0,
+      selling_price: '' as any,
+      cost_price: '' as any,
+      stock_quantity: '' as any,
       unit: 'Piece',
-      barcode: ''
+      barcode: '',
+      low_stock_threshold: 5,
+      discount_percentage: '' as any
     }
   });
 
@@ -174,13 +193,14 @@ export default function InventoryPage() {
     setEditingProduct(null);
     prodForm.reset({
       name: '',
-      description: '',
       category_id: categories.length > 0 ? categories[0].id : '',
-      selling_price: 0,
-      cost_price: 0,
-      stock_quantity: 0,
+      selling_price: '' as any,
+      cost_price: '' as any,
+      stock_quantity: '' as any,
       unit: 'Piece',
-      barcode: ''
+      barcode: '',
+      low_stock_threshold: 5,
+      discount_percentage: '' as any
     });
     setProdModalOpen(true);
   };
@@ -189,13 +209,18 @@ export default function InventoryPage() {
     setEditingProduct(prod);
     prodForm.reset({
       name: prod.name,
-      description: prod.description || '',
       category_id: prod.category_id || '',
       selling_price: Number(prod.selling_price),
       cost_price: prod.cost_price ? Number(prod.cost_price) : undefined,
       stock_quantity: Number(prod.stock_quantity),
       unit: prod.unit,
-      barcode: prod.barcode || ''
+      barcode: prod.barcode || '',
+      low_stock_threshold: prod.low_stock_threshold !== undefined ? Number(prod.low_stock_threshold) : 5,
+      discount_percentage: (() => {
+        const cost = prod.cost_price ? Number(prod.cost_price) : 0;
+        const selling = Number(prod.selling_price);
+        return cost > 0 && selling < cost ? Math.round(((cost - selling) / cost) * 100) : 0;
+      })()
     });
     setProdModalOpen(true);
   };
@@ -236,9 +261,9 @@ export default function InventoryPage() {
     return matchesSearch && matchesCategory;
   });
 
-  const getStockBadgeColor = (qty: number) => {
+  const getStockBadgeColor = (qty: number, threshold = 5) => {
     if (qty === 0) return 'bg-red-500/10 text-red-500 border-red-500/20';
-    if (qty < 10) return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
+    if (qty <= threshold) return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
     return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
   };
 
@@ -402,7 +427,7 @@ export default function InventoryPage() {
                             )}
                           </td>
                           <td className="px-6 py-4">
-                            <span className={`inline-flex items-center rounded-lg border px-2 py-0.5 text-xs font-medium ${getStockBadgeColor(Number(p.stock_quantity))}`}>
+                            <span className={`inline-flex items-center rounded-lg border px-2 py-0.5 text-xs font-medium ${getStockBadgeColor(Number(p.stock_quantity), p.low_stock_threshold !== undefined ? Number(p.low_stock_threshold) : 5)}`}>
                               {p.stock_quantity}
                             </span>
                           </td>
@@ -474,7 +499,7 @@ export default function InventoryPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-3 text-xs">
-                        <span className={`inline-flex items-center rounded-lg border px-2 py-0.5 font-medium ${getStockBadgeColor(Number(p.stock_quantity))}`}>
+                        <span className={`inline-flex items-center rounded-lg border px-2 py-0.5 font-medium ${getStockBadgeColor(Number(p.stock_quantity), p.low_stock_threshold !== undefined ? Number(p.low_stock_threshold) : 5)}`}>
                           Stock: {p.stock_quantity}
                         </span>
                         <span className="font-mono font-semibold text-foreground">{currencySymbol}{Number(p.selling_price).toFixed(2)}</span>
@@ -674,16 +699,6 @@ export default function InventoryPage() {
                   )}
                 </div>
 
-                <div className="space-y-1.5 sm:col-span-2">
-                  <label className="text-xs font-medium text-foreground">Description</label>
-                  <textarea
-                    placeholder="Provide details about size, flavor, pack, etc..."
-                    rows={2}
-                    {...prodForm.register('description')}
-                    className="block w-full rounded-xl border border-border bg-background/50 px-3 py-2 text-sm focus:border-primary focus:outline-none"
-                  />
-                </div>
-
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-foreground">Category</label>
                   <select
@@ -715,32 +730,72 @@ export default function InventoryPage() {
                   )}
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-foreground">Selling Price ({currencySymbol}) *</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    {...prodForm.register('selling_price', { valueAsNumber: true })}
-                    className="block w-full rounded-xl border border-border bg-background/50 px-3 py-2 text-sm focus:border-primary focus:outline-none font-mono"
-                  />
-                  {prodForm.formState.errors.selling_price && (
-                    <p className="text-xs text-destructive">{prodForm.formState.errors.selling_price.message}</p>
-                  )}
-                </div>
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-3 sm:col-span-2">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">Cost Price ({currencySymbol})</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      {...prodForm.register('cost_price', {
+                        valueAsNumber: true,
+                        onChange: (e) => {
+                          e.target.value = e.target.value.replace(/^0+(?=\d)/, '');
+                        }
+                      })}
+                      onFocus={(e) => e.target.select()}
+                      className="block w-full rounded-xl border border-border bg-background/50 px-3 py-2 text-sm focus:border-primary focus:outline-none font-mono"
+                    />
+                    {prodForm.formState.errors.cost_price && (
+                      <p className="text-xs text-destructive">{prodForm.formState.errors.cost_price.message}</p>
+                    )}
+                  </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-foreground">Cost Price ({currencySymbol})</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    {...prodForm.register('cost_price', { valueAsNumber: true })}
-                    className="block w-full rounded-xl border border-border bg-background/50 px-3 py-2 text-sm focus:border-primary focus:outline-none font-mono"
-                  />
-                  {prodForm.formState.errors.cost_price && (
-                    <p className="text-xs text-destructive">{prodForm.formState.errors.cost_price.message}</p>
-                  )}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">Discount (%)</label>
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder="0"
+                      {...prodForm.register('discount_percentage', {
+                        valueAsNumber: true,
+                        onChange: (e) => {
+                          e.target.value = e.target.value.replace(/^0+(?=\d)/, '');
+                          const disc = Number(e.target.value) || 0;
+                          const cost = Number(prodForm.getValues('cost_price')) || 0;
+                          if (cost > 0) {
+                            const calculated = cost * (1 - disc / 100);
+                            prodForm.setValue('selling_price', Number(calculated.toFixed(2)));
+                          }
+                        }
+                      })}
+                      onFocus={(e) => e.target.select()}
+                      className="block w-full rounded-xl border border-border bg-background/50 px-3 py-2 text-sm focus:border-primary focus:outline-none font-mono"
+                    />
+                    {prodForm.formState.errors.discount_percentage && (
+                      <p className="text-xs text-destructive">{prodForm.formState.errors.discount_percentage.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">Selling Price ({currencySymbol}) *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      {...prodForm.register('selling_price', {
+                        valueAsNumber: true,
+                        onChange: (e) => {
+                          e.target.value = e.target.value.replace(/^0+(?=\d)/, '');
+                        }
+                      })}
+                      onFocus={(e) => e.target.select()}
+                      className="block w-full rounded-xl border border-border bg-background/50 px-3 py-2 text-sm focus:border-primary focus:outline-none font-mono"
+                    />
+                    {prodForm.formState.errors.selling_price && (
+                      <p className="text-xs text-destructive">{prodForm.formState.errors.selling_price.message}</p>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-1.5">
@@ -749,7 +804,13 @@ export default function InventoryPage() {
                     type="number"
                     step="any"
                     placeholder="0"
-                    {...prodForm.register('stock_quantity', { valueAsNumber: true })}
+                    {...prodForm.register('stock_quantity', {
+                      valueAsNumber: true,
+                      onChange: (e) => {
+                        e.target.value = e.target.value.replace(/^0+(?=\d)/, '');
+                      }
+                    })}
+                    onFocus={(e) => e.target.select()}
                     className="block w-full rounded-xl border border-border bg-background/50 px-3 py-2 text-sm focus:border-primary focus:outline-none font-mono"
                   />
                   {prodForm.formState.errors.stock_quantity && (
@@ -758,6 +819,26 @@ export default function InventoryPage() {
                 </div>
 
                 <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-foreground">Low Stock Alert Level</label>
+                  <input
+                    type="number"
+                    step="1"
+                    placeholder="5"
+                    {...prodForm.register('low_stock_threshold', {
+                      valueAsNumber: true,
+                      onChange: (e) => {
+                        e.target.value = e.target.value.replace(/^0+(?=\d)/, '');
+                      }
+                    })}
+                    onFocus={(e) => e.target.select()}
+                    className="block w-full rounded-xl border border-border bg-background/50 px-3 py-2 text-sm focus:border-primary focus:outline-none font-mono"
+                  />
+                  {prodForm.formState.errors.low_stock_threshold && (
+                    <p className="text-xs text-destructive">{prodForm.formState.errors.low_stock_threshold.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5 sm:col-span-2">
                   <label className="text-xs font-medium text-foreground">Barcode (optional)</label>
                   <div className="flex gap-2">
                     <input

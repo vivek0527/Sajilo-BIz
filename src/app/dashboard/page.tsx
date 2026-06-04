@@ -80,7 +80,7 @@ export default function DashboardPage() {
     .filter(e => e.date >= monthStartStr)
     .reduce((sum, e) => sum + Number(e.amount), 0);
 
-  const lowStockProducts = products.filter(p => Number(p.stock_quantity) < 10);
+  const lowStockProducts = products.filter(p => Number(p.stock_quantity) <= (p.low_stock_threshold !== undefined ? Number(p.low_stock_threshold) : 5));
   const lowStockCount = lowStockProducts.length;
 
   // 2. Chart 1: 7-Day Revenue Trend
@@ -235,7 +235,7 @@ export default function DashboardPage() {
             <div className={`text-lg sm:text-2xl font-bold font-mono ${lowStockCount > 0 ? 'text-amber-500' : 'text-foreground'}`}>
               {lowStockCount}
             </div>
-            <p className="text-[10px] text-muted-foreground hidden sm:block">Products with stock level &lt; 10</p>
+            <p className="text-[10px] text-muted-foreground hidden sm:block">Products below alert thresholds</p>
           </div>
           <div className={`hidden sm:flex h-10 w-10 items-center justify-center rounded-xl border ${
             lowStockCount > 0

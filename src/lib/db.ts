@@ -890,7 +890,7 @@ export const dbClient = {
       setStorageItem(KEYS.BILL_ITEMS, billItems.filter(item => item.bill_id !== id));
     },
 
-    updatePayment: async (id: string, amount: number): Promise<Bill> => {
+    updatePayment: async (id: string, amount: number, markFullyPaid?: boolean): Promise<Bill> => {
       const user = await dbClient.auth.getUser();
       if (!user) throw new Error('Unauthorized');
 
@@ -898,8 +898,8 @@ export const dbClient = {
       if (!bill) throw new Error('Bill not found');
 
       const newPaid = Number(bill.amount_paid) + amount;
-      const newPending = Math.max(0, Number(bill.grand_total) - newPaid);
-      const newStatus = newPaid >= Number(bill.grand_total) ? 'Paid' : 'Partial';
+      const newPending = markFullyPaid ? 0 : Math.max(0, Number(bill.grand_total) - newPaid);
+      const newStatus = (markFullyPaid || newPaid >= Number(bill.grand_total)) ? 'Paid' : 'Partial';
 
       if (!isMock && supabase) {
         const { data, error } = await supabase
@@ -917,9 +917,10 @@ export const dbClient = {
             .eq('id', bill.customer_id)
             .single();
           if (customer) {
+            const clearedPending = markFullyPaid ? Number(bill.pending_amount) : amount;
             await supabase
               .from('customers')
-              .update({ total_pending: Number(customer.total_pending) - amount })
+              .update({ total_pending: Number(customer.total_pending) - clearedPending })
               .eq('id', bill.customer_id);
           }
         }
@@ -944,7 +945,8 @@ export const dbClient = {
         const customers = getStorageItem<Customer[]>(KEYS.CUSTOMERS, []);
         const custIdx = customers.findIndex(c => c.id === bill.customer_id && c.created_by === user.id);
         if (custIdx !== -1) {
-          customers[custIdx].total_pending = customers[custIdx].total_pending - amount;
+          const clearedPending = markFullyPaid ? Number(bill.pending_amount) : amount;
+          customers[custIdx].total_pending = customers[custIdx].total_pending - clearedPending;
         }
         setStorageItem(KEYS.CUSTOMERS, customers);
       }

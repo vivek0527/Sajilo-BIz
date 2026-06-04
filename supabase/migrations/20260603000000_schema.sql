@@ -32,6 +32,7 @@ create table if not exists products (
   stock_quantity numeric not null default 0,
   unit text not null default 'Piece',
   barcode text,
+  low_stock_threshold numeric not null default 5,
   created_by uuid not null references auth.users(id) on delete cascade,
   created_at timestamptz default now()
 );

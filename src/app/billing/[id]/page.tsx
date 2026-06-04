@@ -32,6 +32,7 @@ export default function BillDetailPage() {
   // Record payment input state
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState<number>(0);
+  const [markAsFullyPaid, setMarkAsFullyPaid] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Queries
@@ -47,13 +48,15 @@ export default function BillDetailPage() {
 
   // Mutation to record payment
   const recordPaymentMutation = useMutation({
-    mutationFn: (amount: number) => dbClient.bills.updatePayment(id, amount),
+    mutationFn: (params: { amount: number; markFullyPaid: boolean }) =>
+      dbClient.bills.updatePayment(id, params.amount, params.markFullyPaid),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bill', id] });
       queryClient.invalidateQueries({ queryKey: ['bills'] });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       setRecordPaymentOpen(false);
       setPaymentAmount(0);
+      setMarkAsFullyPaid(false);
     },
     onError: (err: any) => {
       setErrorMsg(err.message || 'Failed to record payment.');
@@ -77,7 +80,7 @@ export default function BillDetailPage() {
       alert(`Payment amount cannot exceed the pending balance of ${currencySymbol}${bill.pending_amount}`);
       return;
     }
-    recordPaymentMutation.mutate(paymentAmount);
+    recordPaymentMutation.mutate({ amount: paymentAmount, markFullyPaid: markAsFullyPaid });
   };
 
   if (isLoading) {
@@ -104,6 +107,22 @@ export default function BillDetailPage() {
   };
 
   const currencySymbol = settings?.currency_symbol || '₹';
+
+  // Parse change info from notes
+  let cashReceivedVal: string | null = null;
+  let changeGivenVal: string | null = null;
+  let hasChangeInfo = false;
+  let displayNotes = bill?.notes || '';
+
+  if (bill?.notes) {
+    const match = bill.notes.match(/Cash Received:\s*([^|]+)\|\s*Change Given:\s*(.*)/);
+    if (match) {
+      cashReceivedVal = match[1].trim();
+      changeGivenVal = match[2].trim();
+      hasChangeInfo = true;
+      displayNotes = ''; // Hide from standard notes card
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -167,7 +186,7 @@ export default function BillDetailPage() {
                     <td className="px-6 py-4 text-center font-mono font-semibold">{item.quantity}</td>
                     <td className="px-6 py-4 font-mono">{currencySymbol}{Number(item.unit_price).toFixed(2)}</td>
                     <td className="px-6 py-4 font-mono font-semibold text-right">
-                      {currencySymbol}{(item.quantity * item.unit_price).toFixed(2)}
+                      {currencySymbol}{Number(item.total).toFixed(2)}
                     </td>
                   </tr>
                 ))}
@@ -176,10 +195,10 @@ export default function BillDetailPage() {
           </div>
 
           {/* Notes Card */}
-          {bill.notes && (
+          {displayNotes && (
             <div className="glass-panel rounded-2xl p-6 space-y-2">
               <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">Invoice Notes</h4>
-              <p className="text-sm text-muted-foreground">{bill.notes}</p>
+              <p className="text-sm text-muted-foreground">{displayNotes}</p>
             </div>
           )}
         </div>
@@ -222,9 +241,20 @@ export default function BillDetailPage() {
                 <span className="text-muted-foreground">GST/Tax ({bill.tax_percentage}%)</span>
                 <span className="font-mono">{currencySymbol}{Number(bill.tax_amount).toFixed(2)}</span>
               </div>
+              {bill.status === 'Paid' && Number(bill.amount_paid) < Number(bill.grand_total) && (
+                <div className="flex justify-between text-sm text-emerald-500 font-semibold pt-1">
+                  <span>Remainder Discount (Settled)</span>
+                  <span className="font-mono">-{currencySymbol}{(Number(bill.grand_total) - Number(bill.amount_paid)).toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between border-t border-dashed border-border pt-3 text-sm font-bold text-foreground">
                 <span>Grand Total</span>
-                <span className="font-mono text-base">{currencySymbol}{Number(bill.grand_total).toFixed(2)}</span>
+                <span className="font-mono text-base font-bold text-primary">
+                  {currencySymbol}
+                  {bill.status === 'Paid' && Number(bill.amount_paid) < Number(bill.grand_total)
+                    ? Number(bill.amount_paid).toFixed(2)
+                    : Number(bill.grand_total).toFixed(2)}
+                </span>
               </div>
             </div>
 
@@ -243,6 +273,18 @@ export default function BillDetailPage() {
                 <span className="text-muted-foreground">Amount Paid:</span>
                 <span className="font-mono font-bold text-emerald-500">{currencySymbol}{Number(bill.amount_paid).toFixed(2)}</span>
               </div>
+              {hasChangeInfo && (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Cash Received:</span>
+                    <span className="font-mono text-foreground">{cashReceivedVal}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Change Returned:</span>
+                    <span className="font-mono text-emerald-500 font-medium">{changeGivenVal}</span>
+                  </div>
+                </>
+              )}
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Credit Balance Due:</span>
                 <span className={`font-mono font-bold ${Number(bill.pending_amount) > 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
@@ -259,6 +301,7 @@ export default function BillDetailPage() {
                     onClick={() => {
                       setRecordPaymentOpen(true);
                       setPaymentAmount(Number(bill.pending_amount));
+                      setMarkAsFullyPaid(false);
                     }}
                     className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 py-2.5 text-xs font-semibold text-emerald-500 hover:bg-emerald-500/20 transition-all"
                   >
@@ -272,10 +315,27 @@ export default function BillDetailPage() {
                         type="number"
                         step="0.01"
                         value={paymentAmount}
-                        onChange={(e) => setPaymentAmount(Number(e.target.value))}
+                        onChange={(e) => {
+                          e.target.value = e.target.value.replace(/^0+(?=\d)/, '');
+                          setPaymentAmount(Number(e.target.value) || 0);
+                        }}
                         className="block w-full rounded-xl border border-border bg-background px-3 py-2 text-sm font-mono focus:outline-none"
                       />
                     </div>
+                    {bill && paymentAmount < Number(bill.pending_amount) && (
+                      <div className="flex items-center gap-2 px-1">
+                        <input
+                          type="checkbox"
+                          id="settle-fully-paid"
+                          checked={markAsFullyPaid}
+                          onChange={(e) => setMarkAsFullyPaid(e.target.checked)}
+                          className="h-4 w-4 rounded border-border bg-background text-emerald-500 focus:ring-emerald-500"
+                        />
+                        <label htmlFor="settle-fully-paid" className="text-xs font-semibold text-foreground cursor-pointer select-none">
+                          Mark as Fully Paid (Settle remaining {currencySymbol}{(Number(bill.pending_amount) - paymentAmount).toFixed(2)})
+                        </label>
+                      </div>
+                    )}
                     {errorMsg && <p className="text-xs text-destructive">{errorMsg}</p>}
                     <div className="flex gap-2">
                       <button

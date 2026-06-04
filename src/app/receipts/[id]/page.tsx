@@ -64,6 +64,22 @@ export default function ReceiptPrintPage() {
 
   const currencySymbol = settings?.currency_symbol || '₹';
 
+  // Parse change info from notes
+  let cashReceivedVal: string | null = null;
+  let changeGivenVal: string | null = null;
+  let hasChangeInfo = false;
+  let displayNotes = bill?.notes || '';
+
+  if (bill?.notes) {
+    const match = bill.notes.match(/Cash Received:\s*([^|]+)\|\s*Change Given:\s*(.*)/);
+    if (match) {
+      cashReceivedVal = match[1].trim();
+      changeGivenVal = match[2].trim();
+      hasChangeInfo = true;
+      displayNotes = ''; // Hide from footer note
+    }
+  }
+
   return (
     <>
       {/* Print-specific styles */}
@@ -163,7 +179,7 @@ export default function ReceiptPrintPage() {
                     <td className="py-1 max-w-[35mm] truncate">{item.item_name}</td>
                     <td className="py-1 text-center">{item.quantity}</td>
                     <td className="py-1 text-right">{Number(item.unit_price).toFixed(2)}</td>
-                    <td className="py-1 text-right">{Number(item.quantity * item.unit_price).toFixed(2)}</td>
+                    <td className="py-1 text-right">{Number(item.total).toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -181,14 +197,37 @@ export default function ReceiptPrintPage() {
                   <span>{currencySymbol}{Number(bill.tax_amount).toFixed(2)}</span>
                 </div>
               )}
+              {bill.status === 'Paid' && Number(bill.amount_paid) < Number(bill.grand_total) && (
+                <div className="flex justify-between text-[10px] text-gray-700 italic">
+                  <span>Remainder Discount</span>
+                  <span>-{currencySymbol}{(Number(bill.grand_total) - Number(bill.amount_paid)).toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between font-bold border-t border-dotted border-black pt-1 text-xs">
                 <span>Grand Total</span>
-                <span>{currencySymbol}{Number(bill.grand_total).toFixed(2)}</span>
+                <span>
+                  {currencySymbol}
+                  {bill.status === 'Paid' && Number(bill.amount_paid) < Number(bill.grand_total)
+                    ? Number(bill.amount_paid).toFixed(2)
+                    : Number(bill.grand_total).toFixed(2)}
+                </span>
               </div>
               <div className="flex justify-between mt-1 text-[10px]">
                 <span>Amount Paid ({bill.payment_method})</span>
                 <span>{currencySymbol}{Number(bill.amount_paid).toFixed(2)}</span>
               </div>
+              {hasChangeInfo && (
+                <>
+                  <div className="flex justify-between text-[10px] text-gray-700">
+                    <span>Cash Received</span>
+                    <span>{cashReceivedVal}</span>
+                  </div>
+                  <div className="flex justify-between text-[10px] text-gray-700">
+                    <span>Change Returned</span>
+                    <span>{changeGivenVal}</span>
+                  </div>
+                </>
+              )}
               {Number(bill.pending_amount) > 0 && (
                 <div className="flex justify-between font-bold text-black border-t border-dotted border-black pt-1">
                   <span>Pending Credit Due</span>
@@ -200,6 +239,7 @@ export default function ReceiptPrintPage() {
             {/* RECEIPT FOOTER */}
             <div className="text-center border-t border-dashed border-black mt-4 pt-3 space-y-1">
               <p className="text-[10px] font-bold">{settings?.receipt_footer_message || 'Thank you for shopping with us!'}</p>
+              {displayNotes && <p className="text-[9px] text-gray-600 mt-1">Note: {displayNotes}</p>}
             </div>
 
           </div>
