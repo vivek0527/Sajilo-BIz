@@ -139,8 +139,8 @@ export default function NewBillPage() {
     const existing = lineItems.find(item => item.product_id === prod.id);
     if (existing) {
       if (existing.quantity >= Number(prod.stock_quantity)) {
-        alert(`Insufficient stock. Only ${prod.stock_quantity} available in inventory.`);
-        return;
+        const confirmAdd = window.confirm(`Insufficient stock. Only ${prod.stock_quantity} available in inventory. Do you want to add another anyway?`);
+        if (!confirmAdd) return;
       }
       setLineItems(lineItems.map(item =>
         item.product_id === prod.id
@@ -149,8 +149,8 @@ export default function NewBillPage() {
       ));
     } else {
       if (Number(prod.stock_quantity) <= 0) {
-        alert('Insufficient stock. Product is out of stock.');
-        return;
+        const confirmAdd = window.confirm(`Product "${prod.name}" is out of stock in the inventory registry. Do you want to add it anyway?`);
+        if (!confirmAdd) return;
       }
       setLineItems([...lineItems, {
         id: prod.id,
@@ -165,11 +165,24 @@ export default function NewBillPage() {
   };
 
   const handleBarcodeScan = (barcode: string) => {
-    const matchedProduct = products.find(
-      (p) => p.barcode && p.barcode.trim() === barcode.trim()
-    );
+    const cleanScan = barcode.trim().toLowerCase();
+    const cleanScanNoZero = cleanScan.replace(/^0+/, '');
+
+    const matchedProduct = products.find((p) => {
+      if (!p.barcode) return false;
+      const cleanProd = p.barcode.trim().toLowerCase();
+      const cleanProdNoZero = cleanProd.replace(/^0+/, '');
+      return (
+        cleanProd === cleanScan ||
+        cleanProdNoZero === cleanScanNoZero ||
+        cleanProd.includes(cleanScan) ||
+        cleanScan.includes(cleanProd)
+      );
+    });
+
     if (matchedProduct) {
       handleAddProduct(matchedProduct);
+      setScannerOpen(false); // auto-close scanner on success
     } else {
       // Put the scanned barcode into the search field so the user can see it
       setProductSearch(barcode);

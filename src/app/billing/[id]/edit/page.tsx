@@ -5,6 +5,10 @@ import { useRouter, useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { dbClient } from '@/lib/db';
 import { Product, Customer, ShopSettings, Bill, BillItem } from '@/lib/types';
+import dynamic from 'next/dynamic';
+
+const BarcodeScanner = dynamic(() => import('@/components/BarcodeScanner'), { ssr: false });
+
 import {
   Receipt,
   Search,
@@ -20,7 +24,8 @@ import {
   AlertCircle,
   Save,
   Phone,
-  MapPin
+  MapPin,
+  Camera
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -69,6 +74,7 @@ export default function EditBillPage() {
   const [productSearch, setProductSearch] = useState('');
   const [customItemName, setCustomItemName] = useState('');
   const [customItemPrice, setCustomItemPrice] = useState(0);
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   // Bill level fields
   const [taxPercentage, setTaxPercentage] = useState<number>(0);
@@ -171,8 +177,8 @@ export default function EditBillPage() {
     if (existing) {
       const allowedStock = existing.max_stock !== undefined ? existing.max_stock : Number(prod.stock_quantity);
       if (existing.quantity >= allowedStock) {
-        alert(`Insufficient stock. Only ${allowedStock} total available items.`);
-        return;
+        const confirmAdd = window.confirm(`Insufficient stock. Only ${allowedStock} total available items. Do you want to add another anyway?`);
+        if (!confirmAdd) return;
       }
       setLineItems(lineItems.map(item =>
         item.product_id === prod.id
@@ -181,8 +187,8 @@ export default function EditBillPage() {
       ));
     } else {
       if (Number(prod.stock_quantity) <= 0) {
-        alert('Product is out of stock.');
-        return;
+        const confirmAdd = window.confirm(`Product "${prod.name}" is out of stock in the inventory registry. Do you want to add it anyway?`);
+        if (!confirmAdd) return;
       }
       setLineItems([...lineItems, {
         id: prod.id,
@@ -194,6 +200,33 @@ export default function EditBillPage() {
       }]);
     }
     setProductSearch('');
+  };
+
+  const handleBarcodeScan = (barcode: string) => {
+    const cleanScan = barcode.trim().toLowerCase();
+    const cleanScanNoZero = cleanScan.replace(/^0+/, '');
+
+    const matchedProduct = products.find((p) => {
+      if (!p.barcode) return false;
+      const cleanProd = p.barcode.trim().toLowerCase();
+      const cleanProdNoZero = cleanProd.replace(/^0+/, '');
+      return (
+        cleanProd === cleanScan ||
+        cleanProdNoZero === cleanScanNoZero ||
+        cleanProd.includes(cleanScan) ||
+        cleanScan.includes(cleanProd)
+      );
+    });
+
+    if (matchedProduct) {
+      handleAddProduct(matchedProduct);
+      setScannerOpen(false); // auto-close scanner on success
+    } else {
+      // Put the scanned barcode into the search field so the user can see it
+      setProductSearch(barcode);
+      setScannerOpen(false);
+      alert(`No product found with barcode "${barcode}". You can search manually or add it as a custom item.`);
+    }
   };
 
   const handleAddCustomItem = () => {
@@ -437,7 +470,25 @@ export default function EditBillPage() {
 
           {/* Product Lookup Card */}
           <div className="glass-panel rounded-2xl p-6 space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">Add Products to Invoice</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground">Add Products to Invoice</h3>
+              <button
+                type="button"
+                onClick={() => setScannerOpen(!scannerOpen)}
+                className="flex items-center gap-1.5 rounded-xl bg-primary/10 border border-primary/20 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-all"
+              >
+                <Camera size={14} /> {scannerOpen ? 'Close Scanner' : 'Scan Barcode'}
+              </button>
+            </div>
+
+            {scannerOpen && (
+              <div className="border border-border rounded-xl overflow-hidden bg-card mt-2">
+                <BarcodeScanner
+                  onScan={handleBarcodeScan}
+                  onClose={() => setScannerOpen(false)}
+                />
+              </div>
+            )}
 
             <div className="relative">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
