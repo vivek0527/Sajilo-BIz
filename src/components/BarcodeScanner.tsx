@@ -136,75 +136,58 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
   };
 
   return (
-    <div className="relative w-full max-w-md rounded-2xl border border-border bg-card shadow-lg overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-secondary/30">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 border border-primary/20">
-            <Zap size={16} className="text-primary" />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-foreground">Barcode Scanner</h3>
-            <p className="text-[10px] text-muted-foreground">Point camera at product barcode</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleSwitchCamera}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary transition-all"
-            title="Switch Camera"
-          >
-            <SwitchCamera size={16} />
-          </button>
-          <button
-            type="button"
-            onClick={handleClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-destructive/20 text-destructive hover:bg-destructive/10 transition-all"
-            title="Close Scanner"
-          >
-            <X size={16} />
-          </button>
-        </div>
+    <div className="relative w-full max-w-[340px] rounded-xl border border-border bg-black shadow-md overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+      {/* Floating Controls (Top Right) */}
+      <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5 bg-black/40 backdrop-blur-sm rounded-lg p-1">
+        <button
+          type="button"
+          onClick={handleSwitchCamera}
+          className="flex h-7 w-7 items-center justify-center rounded-md border border-white/10 bg-black/60 text-white/80 hover:text-white hover:bg-black transition-all"
+          title="Switch Camera"
+        >
+          <SwitchCamera size={13} />
+        </button>
+        <button
+          type="button"
+          onClick={handleClose}
+          className="flex h-7 w-7 items-center justify-center rounded-md border border-red-500/20 bg-red-950/50 text-red-400 hover:bg-red-950/80 hover:text-red-200 transition-all"
+          title="Close Scanner"
+        >
+          <X size={13} />
+        </button>
       </div>
 
+      {/* Floating Scanned Badge (Bottom Center) */}
+      {lastScanned && (
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 bg-emerald-500/90 text-white text-[10px] font-bold px-2.5 py-1 rounded-md shadow-lg flex items-center gap-1.5 animate-in fade-in zoom-in duration-150">
+          <Zap size={11} className="animate-pulse" />
+          Scanned: <span className="font-mono">{lastScanned}</span>
+        </div>
+      )}
+
       {/* Scanner View */}
-      <div className="relative bg-black">
-        <div id={containerId} className="w-full" />
+      <div className="relative bg-black w-full">
+        <div id={containerId} className="w-full [&_video]:block [&_video]:w-full [&_video]:h-auto" />
 
         {isStarting && !error && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 gap-3 min-h-[200px]">
-            <Loader2 className="animate-spin text-primary" size={28} />
-            <span className="text-xs text-muted-foreground">Initializing camera...</span>
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 gap-2 min-h-[160px]">
+            <Loader2 className="animate-spin text-primary" size={22} />
+            <span className="text-[10px] text-muted-foreground">Starting camera...</span>
           </div>
         )}
 
         {error && (
-          <div className="p-8 flex flex-col items-center justify-center gap-3 text-center">
-            <Camera size={32} className="text-muted-foreground" />
-            <p className="text-sm text-destructive">{error}</p>
+          <div className="p-6 flex flex-col items-center justify-center gap-2 text-center bg-black min-h-[160px]">
+            <Camera size={24} className="text-muted-foreground" />
+            <p className="text-xs text-red-500 max-w-[200px]">{error}</p>
             <button
               type="button"
               onClick={() => startScanner(facingMode)}
-              className="rounded-xl bg-primary/10 border border-primary/20 px-4 py-2 text-xs font-semibold text-primary hover:bg-primary/20 transition-all"
+              className="rounded-lg bg-primary/10 border border-primary/20 px-3 py-1 text-[10px] font-semibold text-primary hover:bg-primary/20 transition-all"
             >
               Retry
             </button>
           </div>
-        )}
-      </div>
-
-      {/* Footer hint */}
-      <div className="px-5 py-3 border-t border-border bg-secondary/20 text-center">
-        {lastScanned ? (
-          <div className="flex items-center justify-center gap-2 text-xs text-emerald-500 font-semibold animate-in fade-in duration-200">
-            <Zap size={14} />
-            Scanned: <span className="font-mono">{lastScanned}</span>
-          </div>
-        ) : (
-          <p className="text-[11px] text-muted-foreground">
-            Align the barcode within the scanner frame. Auto-detects EAN, UPC, Code 128, and more.
-          </p>
         )}
       </div>
     </div>

@@ -775,7 +775,7 @@ export default function InventoryPage() {
                     </button>
                   </div>
                   {barcodeScannerOpen && (
-                    <div className="border border-border rounded-xl overflow-hidden bg-card mt-2">
+                    <div className="mt-2">
                       <BarcodeScanner
                         onScan={(barcode) => {
                           prodForm.setValue('barcode', barcode);

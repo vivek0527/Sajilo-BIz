@@ -220,11 +220,10 @@ export default function EditBillPage() {
 
     if (matchedProduct) {
       handleAddProduct(matchedProduct);
-      setScannerOpen(false); // auto-close scanner on success
+      // Keep scanner open for continuous scanning of multiple products
     } else {
       // Put the scanned barcode into the search field so the user can see it
       setProductSearch(barcode);
-      setScannerOpen(false);
       alert(`No product found with barcode "${barcode}". You can search manually or add it as a custom item.`);
     }
   };
@@ -472,57 +471,59 @@ export default function EditBillPage() {
           <div className="glass-panel rounded-2xl p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-foreground">Add Products to Invoice</h3>
+            </div>
+
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
+                  <Search size={18} />
+                </span>
+                <input
+                  type="text"
+                  placeholder="Scan barcode or type product name..."
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  className="block w-full rounded-xl border border-border bg-background pl-10 pr-3 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none"
+                />
+
+                {/* Search Suggestions */}
+                {filteredProducts.length > 0 && (
+                  <div className="absolute left-0 right-0 mt-2 z-50 rounded-xl border border-border bg-card shadow-xl overflow-hidden divide-y divide-border">
+                    {filteredProducts.map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => handleAddProduct(p)}
+                        className="flex w-full items-center justify-between px-4 py-3 hover:bg-secondary text-left text-sm"
+                      >
+                        <div>
+                          <div className="font-semibold">{p.name}</div>
+                          <span className="text-xs text-muted-foreground font-mono">Stock: {p.stock_quantity} {p.unit}</span>
+                        </div>
+                        <div className="font-semibold font-mono text-primary">
+                          {currencySymbol}{Number(p.selling_price).toFixed(2)}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={() => setScannerOpen(!scannerOpen)}
-                className="flex items-center gap-1.5 rounded-xl bg-primary/10 border border-primary/20 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-all"
+                className="flex items-center gap-1.5 shrink-0 rounded-xl bg-primary/10 border border-primary/20 px-3.5 py-2.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-all"
               >
-                <Camera size={14} /> {scannerOpen ? 'Close Scanner' : 'Scan Barcode'}
+                <Camera size={14} /> {scannerOpen ? 'Close' : 'Scan'}
               </button>
             </div>
 
             {scannerOpen && (
-              <div className="border border-border rounded-xl overflow-hidden bg-card mt-2">
+              <div className="mt-2">
                 <BarcodeScanner
                   onScan={handleBarcodeScan}
                   onClose={() => setScannerOpen(false)}
                 />
               </div>
             )}
-
-            <div className="relative">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
-                <Search size={18} />
-              </span>
-              <input
-                type="text"
-                placeholder="Scan barcode or type product name..."
-                value={productSearch}
-                onChange={(e) => setProductSearch(e.target.value)}
-                className="block w-full rounded-xl border border-border bg-background px-10 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none"
-              />
-
-              {/* Search Suggestions */}
-              {filteredProducts.length > 0 && (
-                <div className="absolute left-0 right-0 mt-2 z-50 rounded-xl border border-border bg-card shadow-xl overflow-hidden divide-y divide-border">
-                  {filteredProducts.map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => handleAddProduct(p)}
-                      className="flex w-full items-center justify-between px-4 py-3 hover:bg-secondary text-left text-sm"
-                    >
-                      <div>
-                        <div className="font-semibold">{p.name}</div>
-                        <span className="text-xs text-muted-foreground font-mono">Stock: {p.stock_quantity} {p.unit}</span>
-                      </div>
-                      <div className="font-semibold font-mono text-primary">
-                        {currencySymbol}{Number(p.selling_price).toFixed(2)}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
 
             {/* Custom Item Box */}
             <div className="border-t border-border pt-4">
