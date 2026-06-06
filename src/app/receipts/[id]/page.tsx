@@ -234,7 +234,7 @@ export default function ReceiptPrintPage() {
                 </span>
               </div>
               <div className="flex justify-between mt-1 text-[10px]">
-                <span>Amount Paid ({bill.payment_method === 'UPI' ? 'Fone Pay' : bill.payment_method === 'Due' ? 'Mo Bank' : bill.payment_method})</span>
+                <span>Amount Paid ({bill.payment_method})</span>
                 <span>{currencySymbol}{Number(bill.amount_paid).toFixed(2)}</span>
               </div>
               {hasChangeInfo && (

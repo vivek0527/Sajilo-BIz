@@ -83,7 +83,7 @@ export default function EditBillPage() {
   const [discountPercentage, setDiscountPercentage] = useState<number>(0);
   const [taxPercentage, setTaxPercentage] = useState<number>(0);
   const [amountPaid, setAmountPaid] = useState<number>(0);
-  const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Card' | 'UPI' | 'Due' | 'Mixed'>('Cash');
+  const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Card' | 'Fone Pay' | 'Mo Bank' | 'Mixed'>('Cash');
 
   const [markAsFullyPaid, setMarkAsFullyPaid] = useState(false);
   const [cashReceived, setCashReceived] = useState<string>('');
@@ -1010,8 +1010,7 @@ export default function EditBillPage() {
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Payment Mode</label>
                 <div className="grid grid-cols-4 gap-2">
-                  {(['Cash', 'UPI', 'Card', 'Due'] as const).map(method => {
-                    const label = method === 'UPI' ? 'Fone Pay' : method === 'Due' ? 'Mo Bank' : method;
+                  {(['Cash', 'Fone Pay', 'Card', 'Mo Bank'] as const).map(method => {
                     return (
                       <button
                         key={method}
@@ -1022,7 +1021,7 @@ export default function EditBillPage() {
                             : 'border-border bg-background text-muted-foreground hover:text-foreground hover:bg-secondary'
                           }`}
                       >
-                        {label}
+                        {method}
                       </button>
                     );
                   })}
