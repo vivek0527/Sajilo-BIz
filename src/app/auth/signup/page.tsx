@@ -65,15 +65,15 @@ export default function SignupPage() {
           <div className="mb-4 flex items-center justify-center">
             <img
               src="/logo.png"
-              alt="Sajilo Biz"
-              className="h-24 w-auto object-contain dark:brightness-110"
+              alt="Saral Biz"
+              className="h-12 w-auto object-contain dark:brightness-110"
             />
           </div>
           <h2 className="mt-2 text-3xl font-bold tracking-tight text-foreground">
             Create an account
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Get started with Sajilo Biz shop manager.
+            Get started with Saral Biz shop manager.
           </p>
         </div>
 

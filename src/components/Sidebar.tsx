@@ -53,8 +53,8 @@ export default function Sidebar() {
   return (
     <aside
       className={`no-print fixed top-0 left-0 z-40 h-screen border-r border-border bg-card/90 backdrop-blur-md transition-all duration-300 ${sidebarOpen
-          ? 'translate-x-0 w-64'
-          : '-translate-x-full md:translate-x-0 w-64 md:w-20'
+        ? 'translate-x-0 w-64'
+        : '-translate-x-full md:translate-x-0 w-64 md:w-20'
         }`}
     >
       <div className="flex h-full flex-col justify-between py-6 px-4">
@@ -66,16 +66,16 @@ export default function Sidebar() {
                 <div className="flex items-center py-1">
                   <img
                     src="/logo.png"
-                    alt="Sajilo Biz"
-                    className="w-40 h-auto object-contain dark:brightness-110"
+                    alt="Saral Biz"
+                    className="w-20 h-auto object-contain dark:brightness-110"
                   />
                 </div>
               ) : (
                 <div className="flex h-14 w-14 items-center justify-center overflow-hidden">
                   <img
                     src="/logo.png"
-                    alt="Sajilo Biz"
-                    className="h-10 w-10 object-cover object-top scale-125 dark:brightness-110"
+                    alt="Saral Biz"
+                    className="h-5 w-5 object-contain dark:brightness-110"
                   />
                 </div>
               )}

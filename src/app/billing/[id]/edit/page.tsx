@@ -80,6 +80,7 @@ export default function EditBillPage() {
   const [showSettlement, setShowSettlement] = useState(false);
 
   // Bill level fields
+  const [discountPercentage, setDiscountPercentage] = useState<number>(0);
   const [taxPercentage, setTaxPercentage] = useState<number>(0);
   const [amountPaid, setAmountPaid] = useState<number>(0);
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Card' | 'UPI' | 'Due' | 'Mixed'>('Cash');
@@ -136,10 +137,19 @@ export default function EditBillPage() {
       setPaymentMethod(bill.payment_method);
       setMarkAsFullyPaid(bill.status === 'Paid' && Number(bill.amount_paid) < Number(bill.grand_total));
       if (bill.notes) {
+        const discMatch = bill.notes.match(/Discount:\s*([\d.]+)%/);
+        if (discMatch) {
+          setDiscountPercentage(Number(discMatch[1]));
+        } else {
+          setDiscountPercentage(0);
+        }
+
         const changeMatch = bill.notes.match(/Cash Received:\s*([^\d]*)([\d.]+)/);
         if (changeMatch) {
           setCashReceived(changeMatch[2]);
         }
+      } else {
+        setDiscountPercentage(0);
       }
 
       if (bill.items) {
@@ -202,7 +212,9 @@ export default function EditBillPage() {
     }
   };
 
-  const subtotal = lineItems.reduce((sum, item) => sum + calculateItemTotal(item), 0);
+  const itemSubtotal = lineItems.reduce((sum, item) => sum + calculateItemTotal(item), 0);
+  const discountAmount = itemSubtotal * (discountPercentage / 100);
+  const subtotal = itemSubtotal - discountAmount;
   const taxAmount = subtotal * (taxPercentage / 100);
   const grandTotal = subtotal + taxAmount;
   const pendingAmount = Math.max(0, grandTotal - amountPaid);
@@ -301,7 +313,7 @@ export default function EditBillPage() {
       return;
     }
     setCashReceived('');
-    setAmountPaid(Number(grandTotal.toFixed(2)));
+    // Keep amountPaid as is (either loaded from DB or typed by user) instead of overwriting with grandTotal
     setShowSettlement(true);
   };
 
@@ -340,9 +352,18 @@ export default function EditBillPage() {
         ? Number((Number(cashReceived) - parsedAmountPaid).toFixed(2))
         : 0;
 
+      let notesParts: string[] = [];
+      if (discountPercentage > 0) {
+        notesParts.push(`Discount: ${discountPercentage}%`);
+      }
+      if (changeDue > 0) {
+        notesParts.push(`Cash Received: ${currencySymbol}${Number(cashReceived).toFixed(2)} | Change Given: ${currencySymbol}${changeDue.toFixed(2)}`);
+      }
+      const finalNotes = notesParts.join(' | ') || undefined;
+
       const billData = {
         customer_id: finalCustomerId || undefined,
-        subtotal: Number(subtotal.toFixed(2)),
+        subtotal: Number(itemSubtotal.toFixed(2)), // Store original items subtotal
         tax_percentage: Number(taxPercentage),
         tax_amount: Number(taxAmount.toFixed(2)),
         grand_total: Number(grandTotal.toFixed(2)),
@@ -350,9 +371,7 @@ export default function EditBillPage() {
         pending_amount: finalPending,
         status: finalStatus as any,
         payment_method: paymentMethod,
-        notes: changeDue > 0
-          ? `Cash Received: ${currencySymbol}${Number(cashReceived).toFixed(2)} | Change Given: ${currencySymbol}${changeDue.toFixed(2)}`
-          : undefined,
+        notes: finalNotes,
       };
 
       const itemsData = lineItems.map(item => {
@@ -895,8 +914,14 @@ export default function EditBillPage() {
               <div className="grid grid-cols-2 gap-4 text-sm bg-secondary/30 p-4 rounded-2xl border border-border/50">
                 <div>
                   <span className="text-muted-foreground block text-xs">Items Subtotal</span>
-                  <span className="font-mono font-semibold text-foreground text-base">{currencySymbol}{subtotal.toFixed(2)}</span>
+                  <span className="font-mono font-semibold text-foreground text-base">{currencySymbol}{itemSubtotal.toFixed(2)}</span>
                 </div>
+                {discountPercentage > 0 && (
+                  <div>
+                    <span className="text-muted-foreground block text-xs">Discount ({discountPercentage}%)</span>
+                    <span className="font-mono font-semibold text-red-500 text-base">-{currencySymbol}{discountAmount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div>
                   <span className="text-muted-foreground block text-xs">GST / Tax Outflow</span>
                   <span className="font-mono font-semibold text-foreground text-base">{currencySymbol}{taxAmount.toFixed(2)}</span>
@@ -907,10 +932,28 @@ export default function EditBillPage() {
                 </div>
               </div>
 
-              {/* Tax and Payment Controls */}
-              <div className="grid gap-4 sm:grid-cols-3">
+              {/* Tax, Discount and Payment Controls */}
+              <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tax Percentage</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Discount</label>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={discountPercentage || ''}
+                      onChange={(e) => {
+                        e.target.value = e.target.value.replace(/^0+(?=\d)/, '');
+                        setDiscountPercentage(Math.min(100, Math.max(0, Number(e.target.value) || 0)));
+                      }}
+                      className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm font-mono text-center"
+                    />
+                    <span className="text-sm text-muted-foreground">%</span>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tax Rate</label>
                   <div className="flex items-center gap-1.5">
                     <input
                       type="number"
@@ -925,15 +968,15 @@ export default function EditBillPage() {
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 col-span-1">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Amount Paid ({currencySymbol})</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Paid ({currencySymbol})</label>
                     <button
                       type="button"
                       onClick={() => setAmountPaid(Number(grandTotal.toFixed(2)))}
                       className="text-[10px] font-bold text-primary hover:underline"
                     >
-                      Exact Amount
+                      Exact
                     </button>
                   </div>
                   <input
@@ -949,8 +992,8 @@ export default function EditBillPage() {
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Cash Received ({currencySymbol})</label>
+                <div className="space-y-1.5 col-span-1">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Cash Rec ({currencySymbol})</label>
                   <input
                     type="text"
                     value={cashReceived}
@@ -967,19 +1010,22 @@ export default function EditBillPage() {
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Payment Mode</label>
                 <div className="grid grid-cols-4 gap-2">
-                  {(['Cash', 'UPI', 'Card', 'Due'] as const).map(method => (
-                    <button
-                      key={method}
-                      type="button"
-                      onClick={() => setPaymentMethod(method)}
-                      className={`py-2.5 text-xs font-semibold rounded-xl border transition-all ${paymentMethod === method
-                          ? 'border-primary bg-primary/10 text-primary font-bold shadow-sm'
-                          : 'border-border bg-background text-muted-foreground hover:text-foreground hover:bg-secondary'
-                        }`}
-                    >
-                      {method}
-                    </button>
-                  ))}
+                  {(['Cash', 'UPI', 'Card', 'Due'] as const).map(method => {
+                    const label = method === 'UPI' ? 'Fone Pay' : method === 'Due' ? 'Mo Bank' : method;
+                    return (
+                      <button
+                        key={method}
+                        type="button"
+                        onClick={() => setPaymentMethod(method)}
+                        className={`py-2.5 text-xs font-semibold rounded-xl border transition-all ${paymentMethod === method
+                            ? 'border-primary bg-primary/10 text-primary font-bold shadow-sm'
+                            : 'border-border bg-background text-muted-foreground hover:text-foreground hover:bg-secondary'
+                          }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

@@ -18,9 +18,12 @@ export interface Product {
   name: string;
   description?: string;
   category_id?: string;
+  mrp?: number;
+  discount_percentage?: number;
   selling_price: number;
   cost_price?: number;
   stock_quantity: number;
+  unit_value?: number;
   unit: string;
   barcode?: string;
   low_stock_threshold?: number;
@@ -67,7 +70,7 @@ export interface Bill {
   amount_paid: number;
   pending_amount: number;
   status: 'Paid' | 'Partial' | 'Pending';
-  payment_method: 'Cash' | 'Card' | 'UPI' | 'Due' | 'Mixed';
+  payment_method: 'Cash' | 'Card' | 'Fone Pay' | 'Mo Bank' | 'Mixed';
   notes?: string;
   created_by: string;
   created_at: string;

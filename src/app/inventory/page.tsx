@@ -44,9 +44,17 @@ const productSchema = z.object({
     (val) => (val === '' || val === undefined || val === null || isNaN(Number(val)) ? undefined : Number(val)),
     z.number().min(0, 'Cost price cannot be negative').optional()
   ),
+  mrp: z.preprocess(
+    (val) => (val === '' || val === undefined || val === null || isNaN(Number(val)) ? undefined : Number(val)),
+    z.number().min(0, 'MRP cannot be negative').optional()
+  ),
   stock_quantity: z.preprocess(
     (val) => (val === '' || val === undefined || val === null || isNaN(Number(val)) ? undefined : Number(val)),
     z.number({ invalid_type_error: 'Stock quantity is required' }).min(0, 'Stock quantity cannot be negative')
+  ),
+  unit_value: z.preprocess(
+    (val) => (val === '' || val === undefined || val === null || isNaN(Number(val)) ? undefined : Number(val)),
+    z.number().min(0, 'Unit value cannot be negative').optional()
   ),
   unit: z.string().min(1, 'Unit is required'),
   barcode: z.string().optional(),
@@ -65,6 +73,8 @@ export default function InventoryPage() {
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   // Modals state
   const [catModalOpen, setCatModalOpen] = useState(false);
@@ -258,7 +268,15 @@ export default function InventoryPage() {
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (p.barcode && p.barcode.includes(searchQuery));
     const matchesCategory = selectedCategoryFilter === '' || p.category_id === selectedCategoryFilter;
-    return matchesSearch && matchesCategory;
+    
+    let matchesDate = true;
+    if (startDate || endDate) {
+      const createdDateStr = new Date(p.created_at).toISOString().split('T')[0];
+      if (startDate && createdDateStr < startDate) matchesDate = false;
+      if (endDate && createdDateStr > endDate) matchesDate = false;
+    }
+    
+    return matchesSearch && matchesCategory && matchesDate;
   });
 
   const lowStockProducts = products.filter(p => Number(p.stock_quantity) <= (p.low_stock_threshold !== undefined ? Number(p.low_stock_threshold) : 5));
@@ -267,7 +285,15 @@ export default function InventoryPage() {
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (p.barcode && p.barcode.includes(searchQuery));
     const matchesCategory = selectedCategoryFilter === '' || p.category_id === selectedCategoryFilter;
-    return matchesSearch && matchesCategory;
+    
+    let matchesDate = true;
+    if (startDate || endDate) {
+      const createdDateStr = new Date(p.created_at).toISOString().split('T')[0];
+      if (startDate && createdDateStr < startDate) matchesDate = false;
+      if (endDate && createdDateStr > endDate) matchesDate = false;
+    }
+    
+    return matchesSearch && matchesCategory && matchesDate;
   });
 
   const getStockBadgeColor = (qty: number, threshold = 5) => {
@@ -382,6 +408,32 @@ export default function InventoryPage() {
                 ))}
               </select>
             </div>
+
+            {/* Start Date */}
+            <div className="relative min-w-0 sm:min-w-[150px]">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground text-[10px] uppercase font-bold">
+                From
+              </span>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="block w-full rounded-xl border border-border bg-card pl-12 pr-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+              />
+            </div>
+
+            {/* End Date */}
+            <div className="relative min-w-0 sm:min-w-[150px]">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground text-[10px] uppercase font-bold">
+                To
+              </span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="block w-full rounded-xl border border-border bg-card pl-9 pr-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+              />
+            </div>
           </div>
 
           {/* Products Table */}
@@ -454,7 +506,9 @@ export default function InventoryPage() {
                           <td className="px-6 py-4 font-mono text-muted-foreground">
                             {p.cost_price ? `${currencySymbol}${Number(p.cost_price).toFixed(2)}` : '-'}
                           </td>
-                          <td className="px-6 py-4 text-xs text-muted-foreground">{p.unit}</td>
+                          <td className="px-6 py-4 text-xs text-muted-foreground">
+                            {p.unit_value ? `${p.unit_value} ${p.unit}` : p.unit}
+                          </td>
                           <td className="px-6 py-4 text-xs text-muted-foreground font-mono">{p.barcode || '-'}</td>
                           <td className="px-6 py-4 text-right space-x-2">
                             <button
@@ -520,7 +574,9 @@ export default function InventoryPage() {
                           Stock: {p.stock_quantity}
                         </span>
                         <span className="font-mono font-semibold text-foreground">{currencySymbol}{Number(p.selling_price).toFixed(2)}</span>
-                        <span className="text-muted-foreground">{p.unit}</span>
+                        <span className="text-muted-foreground">
+                          {p.unit_value ? `${p.unit_value} ${p.unit}` : p.unit}
+                        </span>
                       </div>
                     </div>
                   );
@@ -636,6 +692,32 @@ export default function InventoryPage() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            {/* Start Date */}
+            <div className="relative min-w-0 sm:min-w-[150px]">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground text-[10px] uppercase font-bold">
+                From
+              </span>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="block w-full rounded-xl border border-border bg-card pl-12 pr-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+              />
+            </div>
+
+            {/* End Date */}
+            <div className="relative min-w-0 sm:min-w-[150px]">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground text-[10px] uppercase font-bold">
+                To
+              </span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="block w-full rounded-xl border border-border bg-card pl-9 pr-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+              />
             </div>
           </div>
 
@@ -905,25 +987,71 @@ export default function InventoryPage() {
                   </select>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-foreground">Unit of Measurement *</label>
-                  <select
-                    {...prodForm.register('unit')}
-                    className="block w-full rounded-xl border border-border bg-background/50 px-3 py-2 text-sm focus:border-primary focus:outline-none"
-                  >
-                    <option value="Piece">Piece (pc)</option>
-                    <option value="Kilogram">Kilogram (kg)</option>
-                    <option value="Liter">Liter (L)</option>
-                    <option value="Meter">Meter (m)</option>
-                    <option value="Box">Box</option>
-                    <option value="Packet">Packet</option>
-                  </select>
-                  {prodForm.formState.errors.unit && (
-                    <p className="text-xs text-destructive">{prodForm.formState.errors.unit.message}</p>
-                  )}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">Content Size / Value</label>
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder="e.g. 5"
+                      {...prodForm.register('unit_value', {
+                        valueAsNumber: true,
+                        onChange: (e) => {
+                          e.target.value = e.target.value.replace(/^0+(?=\d)/, '');
+                        }
+                      })}
+                      className="block w-full rounded-xl border border-border bg-background/50 px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                    />
+                    {prodForm.formState.errors.unit_value && (
+                      <p className="text-xs text-destructive">{prodForm.formState.errors.unit_value.message}</p>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">Unit of Measurement *</label>
+                    <select
+                      {...prodForm.register('unit')}
+                      className="block w-full rounded-xl border border-border bg-background/50 px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                    >
+                      <option value="Piece">Piece (pc)</option>
+                      <option value="Kilogram">Kilogram (kg)</option>
+                      <option value="Liter">Liter (L)</option>
+                      <option value="Meter">Meter (m)</option>
+                      <option value="Box">Box</option>
+                      <option value="Packet">Packet</option>
+                    </select>
+                    {prodForm.formState.errors.unit && (
+                      <p className="text-xs text-destructive">{prodForm.formState.errors.unit.message}</p>
+                    )}
+                  </div>
                 </div>
 
-                <div className="grid gap-4 grid-cols-1 sm:grid-cols-3 sm:col-span-2">
+                  <div className="grid gap-4 grid-cols-1 sm:grid-cols-4 sm:col-span-2">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">MRP ({currencySymbol})</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      {...prodForm.register('mrp', {
+                        valueAsNumber: true,
+                        onChange: (e) => {
+                          e.target.value = e.target.value.replace(/^0+(?=\d)/, '');
+                          const mrpVal = Number(e.target.value) || 0;
+                          const disc = Number(prodForm.getValues('discount_percentage')) || 0;
+                          if (mrpVal > 0) {
+                            const calculated = mrpVal * (1 - disc / 100);
+                            prodForm.setValue('selling_price', Number(calculated.toFixed(2)));
+                          }
+                        }
+                      })}
+                      onFocus={(e) => e.target.select()}
+                      className="block w-full rounded-xl border border-border bg-background/50 px-3 py-2 text-sm focus:border-primary focus:outline-none font-mono"
+                    />
+                    {prodForm.formState.errors.mrp && (
+                      <p className="text-xs text-destructive">{prodForm.formState.errors.mrp.message}</p>
+                    )}
+                  </div>
+
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-foreground">Cost Price ({currencySymbol})</label>
                     <input
@@ -955,9 +1083,9 @@ export default function InventoryPage() {
                         onChange: (e) => {
                           e.target.value = e.target.value.replace(/^0+(?=\d)/, '');
                           const disc = Number(e.target.value) || 0;
-                          const cost = Number(prodForm.getValues('cost_price')) || 0;
-                          if (cost > 0) {
-                            const calculated = cost * (1 - disc / 100);
+                          const mrpVal = Number(prodForm.getValues('mrp')) || 0;
+                          if (mrpVal > 0) {
+                            const calculated = mrpVal * (1 - disc / 100);
                             prodForm.setValue('selling_price', Number(calculated.toFixed(2)));
                           }
                         }

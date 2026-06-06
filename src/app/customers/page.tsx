@@ -38,6 +38,8 @@ export default function CustomersPage() {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<'all' | 'cleared' | 'unpaid'>('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   // Modals state
   const [modalOpen, setModalOpen] = useState(false);
@@ -141,6 +143,15 @@ export default function CustomersPage() {
     const query = searchQuery.toLowerCase();
     const matchesSearch = c.name.toLowerCase().includes(query) || (c.phone && c.phone.includes(query));
     if (!matchesSearch) return false;
+
+    let matchesDate = true;
+    if (startDate || endDate) {
+      const createdDateStr = new Date(c.created_at).toISOString().split('T')[0];
+      if (startDate && createdDateStr < startDate) matchesDate = false;
+      if (endDate && createdDateStr > endDate) matchesDate = false;
+    }
+    if (!matchesDate) return false;
+
     if (paymentFilter === 'cleared') return Number(c.total_pending) <= 0;
     if (paymentFilter === 'unpaid') return Number(c.total_pending) > 0;
     return true;
@@ -149,15 +160,44 @@ export default function CustomersPage() {
   // Counts for filter badges
   const allCount = customers.filter(c => {
     const query = searchQuery.toLowerCase();
-    return c.name.toLowerCase().includes(query) || (c.phone && c.phone.includes(query));
+    const matchesSearch = c.name.toLowerCase().includes(query) || (c.phone && c.phone.includes(query));
+
+    let matchesDate = true;
+    if (startDate || endDate) {
+      const createdDateStr = new Date(c.created_at).toISOString().split('T')[0];
+      if (startDate && createdDateStr < startDate) matchesDate = false;
+      if (endDate && createdDateStr > endDate) matchesDate = false;
+    }
+
+    return matchesSearch && matchesDate;
   }).length;
+
   const clearedCount = customers.filter(c => {
     const query = searchQuery.toLowerCase();
-    return (c.name.toLowerCase().includes(query) || (c.phone && c.phone.includes(query))) && Number(c.total_pending) <= 0;
+    const matchesSearch = c.name.toLowerCase().includes(query) || (c.phone && c.phone.includes(query));
+
+    let matchesDate = true;
+    if (startDate || endDate) {
+      const createdDateStr = new Date(c.created_at).toISOString().split('T')[0];
+      if (startDate && createdDateStr < startDate) matchesDate = false;
+      if (endDate && createdDateStr > endDate) matchesDate = false;
+    }
+
+    return matchesSearch && matchesDate && Number(c.total_pending) <= 0;
   }).length;
+
   const unpaidCount = customers.filter(c => {
     const query = searchQuery.toLowerCase();
-    return (c.name.toLowerCase().includes(query) || (c.phone && c.phone.includes(query))) && Number(c.total_pending) > 0;
+    const matchesSearch = c.name.toLowerCase().includes(query) || (c.phone && c.phone.includes(query));
+
+    let matchesDate = true;
+    if (startDate || endDate) {
+      const createdDateStr = new Date(c.created_at).toISOString().split('T')[0];
+      if (startDate && createdDateStr < startDate) matchesDate = false;
+      if (endDate && createdDateStr > endDate) matchesDate = false;
+    }
+
+    return matchesSearch && matchesDate && Number(c.total_pending) > 0;
   }).length;
 
   // Get bills for selected customer in history ledger
@@ -188,18 +228,47 @@ export default function CustomersPage() {
         </div>
       </div>
 
-      {/* Search Bar */}
-      <div className="relative">
-        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
-          <Search size={18} />
-        </span>
-        <input
-          type="text"
-          placeholder="Search customers by name or phone number..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="block w-full rounded-xl border border-border bg-card px-10 py-2.5 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-        />
+      {/* Search Bar & Date Filters */}
+      <div className="flex flex-col gap-4 sm:flex-row">
+        {/* Search */}
+        <div className="relative flex-1">
+          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
+            <Search size={18} />
+          </span>
+          <input
+            type="text"
+            placeholder="Search customers by name or phone number..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="block w-full rounded-xl border border-border bg-card px-10 py-2.5 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+          />
+        </div>
+
+        {/* Start Date */}
+        <div className="relative min-w-0 sm:min-w-[150px]">
+          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground text-[10px] uppercase font-bold">
+            From
+          </span>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="block w-full rounded-xl border border-border bg-card pl-12 pr-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+          />
+        </div>
+
+        {/* End Date */}
+        <div className="relative min-w-0 sm:min-w-[150px]">
+          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground text-[10px] uppercase font-bold">
+            To
+          </span>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="block w-full rounded-xl border border-border bg-card pl-9 pr-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+          />
+        </div>
       </div>
 
       {/* Payment Status Filter Tabs */}

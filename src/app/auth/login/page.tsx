@@ -60,12 +60,12 @@ export default function LoginPage() {
           <div className="mb-4 flex items-center justify-center">
             <img
               src="/logo.png"
-              alt="Sajilo Biz"
-              className="h-24 w-auto object-contain dark:brightness-110"
+              alt="Saral Biz"
+              className="h-12 w-auto object-contain dark:brightness-110"
             />
           </div>
           <h2 className="mt-2 text-3xl font-bold tracking-tight text-foreground">
-            Sign in to Sajilo Biz
+            Sign in to Saral Biz
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
             Manage your shop, inventory, and bills with ease.
@@ -143,7 +143,7 @@ export default function LoginPage() {
 
           <div className="mt-6 text-center">
             <span className="text-sm text-muted-foreground">
-              New to Sajilo Biz?{' '}
+              New to Saral Biz?{' '}
               <Link href="/auth/signup" className="font-semibold text-primary hover:underline">
                 Create an account
               </Link>

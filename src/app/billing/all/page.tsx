@@ -22,7 +22,8 @@ export default function AllBillsPage() {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [dateFilter, setDateFilter] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [tabFilter, setTabFilter] = useState<'all' | 'paid' | 'unpaid'>('all');
 
   // Queries
@@ -60,9 +61,10 @@ export default function AllBillsPage() {
     const matchesStatus = statusFilter === '' || b.status === statusFilter;
 
     let matchesDate = true;
-    if (dateFilter) {
+    if (startDate || endDate) {
       const billDateStr = new Date(b.created_at).toISOString().split('T')[0];
-      matchesDate = billDateStr === dateFilter;
+      if (startDate && billDateStr < startDate) matchesDate = false;
+      if (endDate && billDateStr > endDate) matchesDate = false;
     }
 
     let matchesTab = true;
@@ -74,6 +76,49 @@ export default function AllBillsPage() {
 
     return matchesSearch && matchesStatus && matchesDate && matchesTab;
   });
+
+  // Tab counts based on search query and date filters
+  const allCount = bills.filter(b => {
+    const customerName = b.customer?.name || 'Walk-in Customer';
+    const matchesSearch = customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      String(b.bill_number).includes(searchQuery);
+    const matchesStatus = statusFilter === '' || b.status === statusFilter;
+    let matchesDate = true;
+    if (startDate || endDate) {
+      const billDateStr = new Date(b.created_at).toISOString().split('T')[0];
+      if (startDate && billDateStr < startDate) matchesDate = false;
+      if (endDate && billDateStr > endDate) matchesDate = false;
+    }
+    return matchesSearch && matchesStatus && matchesDate;
+  }).length;
+
+  const paidCount = bills.filter(b => {
+    const customerName = b.customer?.name || 'Walk-in Customer';
+    const matchesSearch = customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      String(b.bill_number).includes(searchQuery);
+    const matchesStatus = statusFilter === '' || b.status === statusFilter;
+    let matchesDate = true;
+    if (startDate || endDate) {
+      const billDateStr = new Date(b.created_at).toISOString().split('T')[0];
+      if (startDate && billDateStr < startDate) matchesDate = false;
+      if (endDate && billDateStr > endDate) matchesDate = false;
+    }
+    return matchesSearch && matchesStatus && matchesDate && b.status === 'Paid';
+  }).length;
+
+  const unpaidCount = bills.filter(b => {
+    const customerName = b.customer?.name || 'Walk-in Customer';
+    const matchesSearch = customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      String(b.bill_number).includes(searchQuery);
+    const matchesStatus = statusFilter === '' || b.status === statusFilter;
+    let matchesDate = true;
+    if (startDate || endDate) {
+      const billDateStr = new Date(b.created_at).toISOString().split('T')[0];
+      if (startDate && billDateStr < startDate) matchesDate = false;
+      if (endDate && billDateStr > endDate) matchesDate = false;
+    }
+    return matchesSearch && matchesStatus && matchesDate && Number(b.pending_amount) > 0;
+  }).length;
 
   const getStatusBadge = (status: string) => {
     if (status === 'Paid') return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
@@ -128,16 +173,29 @@ export default function AllBillsPage() {
           </select>
         </div>
 
-        {/* Date */}
-        <div className="relative min-w-0 sm:min-w-[170px]">
-          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
-            <Calendar size={14} />
+        {/* Start Date */}
+        <div className="relative min-w-0 sm:min-w-[150px]">
+          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground text-[10px] uppercase font-bold">
+            From
           </span>
           <input
             type="date"
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-            className="block w-full rounded-xl border border-border bg-card pl-9 pr-3 py-2.5 text-sm focus:outline-none font-mono"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="block w-full rounded-xl border border-border bg-card pl-12 pr-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+          />
+        </div>
+
+        {/* End Date */}
+        <div className="relative min-w-0 sm:min-w-[150px]">
+          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground text-[10px] uppercase font-bold">
+            To
+          </span>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="block w-full rounded-xl border border-border bg-card pl-9 pr-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono"
           />
         </div>
       </div>
@@ -153,7 +211,7 @@ export default function AllBillsPage() {
         >
           All Invoices
           <span className="ml-2 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium font-mono text-muted-foreground">
-            {bills.length}
+            {allCount}
           </span>
           {tabFilter === 'all' && (
             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary animate-in fade-in" />
@@ -169,7 +227,7 @@ export default function AllBillsPage() {
         >
           Fully Paid
           <span className="ml-2 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-0.5 text-xs font-medium font-mono">
-            {bills.filter(b => b.status === 'Paid').length}
+            {paidCount}
           </span>
           {tabFilter === 'paid' && (
             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500 animate-in fade-in" />
@@ -185,7 +243,7 @@ export default function AllBillsPage() {
         >
           Unpaid / Outstanding
           <span className="ml-2 rounded-full bg-red-500/10 text-red-500 border border-red-500/20 px-2 py-0.5 text-xs font-medium font-mono">
-            {bills.filter(b => Number(b.pending_amount) > 0).length}
+            {unpaidCount}
           </span>
           {tabFilter === 'unpaid' && (
             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-500 animate-in fade-in" />

@@ -64,20 +64,35 @@ export default function ReceiptPrintPage() {
 
   const currencySymbol = settings?.currency_symbol || '₹';
 
-  // Parse change info from notes
+  // Parse change and discount info from notes
   let cashReceivedVal: string | null = null;
   let changeGivenVal: string | null = null;
   let hasChangeInfo = false;
+  let discountPercentage = 0;
   let displayNotes = bill?.notes || '';
 
   if (bill?.notes) {
+    // Parse discount
+    const discMatch = bill.notes.match(/Discount:\s*([\d.]+)%/);
+    if (discMatch) {
+      discountPercentage = Number(discMatch[1]);
+    }
+
+    // Parse change info
     const match = bill.notes.match(/Cash Received:\s*([^|]+)\|\s*Change Given:\s*(.*)/);
     if (match) {
       cashReceivedVal = match[1].trim();
       changeGivenVal = match[2].trim();
       hasChangeInfo = true;
-      displayNotes = ''; // Hide from footer note
     }
+
+    // Clean up displayNotes for footer
+    displayNotes = bill.notes
+      .replace(/Discount:\s*[\d.]+%/, '')
+      .replace(/Cash Received:\s*[^|]+\|\s*Change Given:\s*(.*)/, '')
+      .replace(/^[| ]+|[| ]+$/g, '')
+      .replace(/\s*\|\s*$/, '')
+      .trim();
   }
 
   return (
@@ -191,6 +206,12 @@ export default function ReceiptPrintPage() {
                 <span>Subtotal</span>
                 <span>{currencySymbol}{Number(bill.subtotal).toFixed(2)}</span>
               </div>
+              {discountPercentage > 0 && (
+                <div className="flex justify-between text-[10px] text-gray-700 italic">
+                  <span>Discount ({discountPercentage}%)</span>
+                  <span>-{currencySymbol}{(Number(bill.subtotal) * (discountPercentage / 100)).toFixed(2)}</span>
+                </div>
+              )}
               {Number(bill.tax_amount) > 0 && (
                 <div className="flex justify-between">
                   <span>GST/Tax ({bill.tax_percentage}%)</span>
@@ -213,7 +234,7 @@ export default function ReceiptPrintPage() {
                 </span>
               </div>
               <div className="flex justify-between mt-1 text-[10px]">
-                <span>Amount Paid ({bill.payment_method})</span>
+                <span>Amount Paid ({bill.payment_method === 'UPI' ? 'Fone Pay' : bill.payment_method === 'Due' ? 'Mo Bank' : bill.payment_method})</span>
                 <span>{currencySymbol}{Number(bill.amount_paid).toFixed(2)}</span>
               </div>
               {hasChangeInfo && (

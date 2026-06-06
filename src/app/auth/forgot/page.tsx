@@ -49,8 +49,8 @@ export default function ForgotPasswordPage() {
           <div className="mb-4 flex items-center justify-center">
             <img
               src="/logo.png"
-              alt="Sajilo Biz"
-              className="h-24 w-auto object-contain dark:brightness-110"
+              alt="Saral Biz"
+              className="h-12 w-auto object-contain dark:brightness-110"
             />
           </div>
           <h2 className="mt-2 text-3xl font-bold tracking-tight text-foreground">

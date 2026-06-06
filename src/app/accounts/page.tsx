@@ -42,7 +42,7 @@ import {
   Legend,
 } from 'recharts';
 
-type TimePeriod = 'today' | 'week' | 'month' | 'year' | 'all';
+type TimePeriod = 'today' | 'week' | 'month' | 'year' | 'all' | 'custom';
 
 /* ────────────────────────────────────────────────────────────────
  * Custom Tooltip – glass-style, works on every chart
@@ -59,6 +59,8 @@ const glassTooltipStyle = {
 
 export default function AccountsPage() {
   const [period, setPeriod] = useState<TimePeriod>('month');
+  const [startDateStr, setStartDateStr] = useState<string>('');
+  const [endDateStr, setEndDateStr] = useState<string>('');
 
   /* ── Queries ─────────────────────────────────────────────────── */
   const { data: settings } = useQuery<ShopSettings>({
@@ -96,11 +98,12 @@ export default function AccountsPage() {
       case 'month':  d.setDate(1); d.setHours(0,0,0,0); return d;
       case 'year':   d.setMonth(0,1); d.setHours(0,0,0,0); return d;
       case 'all':    return null;
+      case 'custom': return null;
     }
   };
 
   const tag = (p: TimePeriod) =>
-    ({ today:'Today', week:'This Week', month:'This Month', year:'This Year', all:'All Time' }[p]);
+    ({ today:'Today', week:'This Week', month:'This Month', year:'This Year', all:'All Time', custom:'Custom Range' }[p]);
 
   const fmt = (n: number) => {
     if (Math.abs(n) >= 100000) return `${(n/100000).toFixed(2)}L`;
@@ -110,16 +113,40 @@ export default function AccountsPage() {
 
   /* ── Filtered data ───────────────────────────────────────────── */
   const filteredBills = useMemo(() => {
+    if (period === 'custom') {
+      let result = bills;
+      if (startDateStr) {
+        const s = new Date(startDateStr);
+        s.setHours(0,0,0,0);
+        result = result.filter(b => new Date(b.created_at) >= s);
+      }
+      if (endDateStr) {
+        const e = new Date(endDateStr);
+        e.setHours(23,59,59,999);
+        result = result.filter(b => new Date(b.created_at) <= e);
+      }
+      return result;
+    }
     const s = getStartDate(period);
     return s ? bills.filter(b => new Date(b.created_at) >= s) : bills;
-  }, [bills, period]);
+  }, [bills, period, startDateStr, endDateStr]);
 
   const filteredExpenses = useMemo(() => {
+    if (period === 'custom') {
+      let result = expenses;
+      if (startDateStr) {
+        result = result.filter(e => e.date >= startDateStr);
+      }
+      if (endDateStr) {
+        result = result.filter(e => e.date <= endDateStr);
+      }
+      return result;
+    }
     const s = getStartDate(period);
     if (!s) return expenses;
     const ss = s.toISOString().split('T')[0];
     return expenses.filter(e => e.date >= ss);
-  }, [expenses, period]);
+  }, [expenses, period, startDateStr, endDateStr]);
 
   /* ── KPIs ────────────────────────────────────────────────────── */
   const totalRevenue   = useMemo(() => filteredBills.reduce((s,b) => s + Number(b.grand_total), 0), [filteredBills]);
@@ -223,17 +250,40 @@ export default function AccountsPage() {
 
           {/* period pills */}
           <div className="flex items-center gap-0.5 rounded-xl sm:rounded-2xl bg-secondary/50 backdrop-blur-sm border border-border/40 p-1 sm:p-1.5 self-start sm:self-auto overflow-x-auto scrollbar-none">
-            {(['today','week','month','year','all'] as TimePeriod[]).map(p => (
+            {(['today','week','month','year','all','custom'] as TimePeriod[]).map(p => (
               <button key={p} onClick={()=>setPeriod(p)}
                 className={`whitespace-nowrap rounded-lg sm:rounded-xl px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold capitalize transition-all duration-200 ${
                   period===p
                     ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/25'
                     : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
                 }`}
-              >{p==='all'?'All':p}</button>
+              >{p==='all'?'All':p==='custom'?'Custom':p}</button>
             ))}
           </div>
         </div>
+
+        {period === 'custom' && (
+          <div className="relative z-10 mt-4 flex flex-wrap items-center gap-3 bg-secondary/30 p-3 rounded-xl border border-border/20 max-w-fit animate-in fade-in slide-in-from-top-2 duration-200 font-sans">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground">From</span>
+              <input
+                type="date"
+                value={startDateStr}
+                onChange={(e) => setStartDateStr(e.target.value)}
+                className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground">To</span>
+              <input
+                type="date"
+                value={endDateStr}
+                onChange={(e) => setEndDateStr(e.target.value)}
+                className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+              />
+            </div>
+          </div>
+        )}
       </section>
 
       {/* ─── KPI CARDS ────────────────────────────────────────── */}
