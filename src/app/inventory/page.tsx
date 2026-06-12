@@ -22,7 +22,9 @@ import {
   AlertTriangle,
   FileSpreadsheet,
   X,
-  Camera
+  Camera,
+  Image as ImageIcon,
+  FileText
 } from 'lucide-react';
 
 // Form Zod Schemas
@@ -68,7 +70,7 @@ type ProductFormInput = z.infer<typeof productSchema>;
 
 export default function InventoryPage() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'lowstock'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'lowstock' | 'scanbill'>('products');
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -82,6 +84,38 @@ export default function InventoryPage() {
   const [prodModalOpen, setProdModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [barcodeScannerOpen, setBarcodeScannerOpen] = useState(false);
+
+  // Bill Scanner state
+  interface UploadedFile {
+    id: string;
+    file: File;
+    name: string;
+    size: number;
+    url: string;
+    status: 'pending' | 'scanning' | 'completed' | 'failed';
+    error?: string;
+  }
+  
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [scanWarning, setScanWarning] = useState<string | null>(null);
+  const [rawOcrLines, setRawOcrLines] = useState<string[]>([]);
+  const [showRawLines, setShowRawLines] = useState(false);
+  const [selectedPreviewFile, setSelectedPreviewFile] = useState<UploadedFile | null>(null);
+  
+  // Webcam capture state
+  const [webcamActive, setWebcamActive] = useState(false);
+  const [sessionCaptureCount, setSessionCaptureCount] = useState<number>(0);
+  const [webcamDevices, setWebcamDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedCameraId, setSelectedCameraId] = useState<string>('');
+  const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  const streamRef = React.useRef<MediaStream | null>(null);
+
+  // Scanned items to import
+  const [scannedItems, setScannedItems] = useState<any[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{ success: number; failed: number } | null>(null);
 
   // Queries
   const { data: settings } = useQuery<ShopSettings>({
@@ -263,6 +297,350 @@ export default function InventoryPage() {
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const newFiles: UploadedFile[] = Array.from(files).map(file => ({
+        id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        file,
+        name: file.name,
+        size: file.size,
+        url: URL.createObjectURL(file),
+        status: 'pending'
+      }));
+      setUploadedFiles(prev => [...prev, ...newFiles]);
+      if (!selectedPreviewFile && newFiles.length > 0) {
+        setSelectedPreviewFile(newFiles[0]);
+      }
+      setScanError(null);
+      setScanWarning(null);
+      setImportResult(null);
+    }
+  };
+
+  // Webcam stream handlers
+  const startWebcam = async () => {
+    setWebcamActive(true);
+    setSessionCaptureCount(0);
+    setScanError(null);
+    // Give state updates time to render the video element
+    setTimeout(async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+        
+        // Enumerate webcam devices
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(d => d.kind === 'videoinput');
+        setWebcamDevices(videoDevices);
+        if (videoDevices.length > 0) {
+          setSelectedCameraId(videoDevices[0].deviceId);
+        }
+      } catch (err: any) {
+        console.error('Failed to open webcam:', err);
+        setScanError('Could not access camera. Please check browser permissions.');
+        setWebcamActive(false);
+      }
+    }, 100);
+  };
+
+  const handleCameraChange = async (deviceId: string) => {
+    setSelectedCameraId(deviceId);
+    stopWebcamStream();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { deviceId: { exact: deviceId } }
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error('Failed to switch camera:', err);
+    }
+  };
+
+  const stopWebcamStream = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  };
+
+  const stopWebcam = () => {
+    stopWebcamStream();
+    setWebcamActive(false);
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current) {
+      const video = videoRef.current;
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 1280;
+      canvas.height = video.videoHeight || 720;
+      
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const file = new File([blob], `captured_bill_${Date.now()}.png`, { type: 'image/png' });
+            const newFile: UploadedFile = {
+              id: `capture-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              file,
+              name: file.name,
+              size: file.size,
+              url: URL.createObjectURL(file),
+              status: 'pending'
+            };
+            setUploadedFiles(prev => [...prev, newFile]);
+            setSelectedPreviewFile(newFile);
+            setSessionCaptureCount(prev => prev + 1);
+            // Do not stop webcam stream to allow snapping multiple photos
+          }
+        }, 'image/png');
+      }
+    }
+  };
+
+  const handleRemoveFileFromQueue = (id: string) => {
+    setUploadedFiles(prev => {
+      const fileToRemove = prev.find(f => f.id === id);
+      if (fileToRemove) {
+        URL.revokeObjectURL(fileToRemove.url);
+      }
+      const filtered = prev.filter(f => f.id !== id);
+      if (selectedPreviewFile?.id === id) {
+        setSelectedPreviewFile(filtered.length > 0 ? filtered[0] : null);
+      }
+      return filtered;
+    });
+  };
+
+  const handleScanBill = async () => {
+    const pendingFiles = uploadedFiles.filter(f => f.status === 'pending' || f.status === 'failed');
+    if (pendingFiles.length === 0) return;
+    
+    setScanning(true);
+    setScanError(null);
+    setScanWarning(null);
+    setImportResult(null);
+    
+    let allOcrLines: string[] = [...rawOcrLines];
+    let newScannedItems: any[] = [...scannedItems];
+    
+    // Process files sequentially
+    for (const uFile of pendingFiles) {
+      setUploadedFiles(prev => prev.map(f => f.id === uFile.id ? { ...f, status: 'scanning' } : f));
+      
+      const formData = new FormData();
+      formData.append('file', uFile.file);
+      
+      try {
+        const res = await fetch('/api/ocr', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to scan bill');
+        }
+        
+        if (data.warning) {
+          setScanWarning(prev => prev ? `${prev} | ${data.warning}` : data.warning);
+        }
+        
+        // Add divider line in raw output
+        allOcrLines.push(`=== FILE: ${uFile.name} ===`);
+        allOcrLines.push(...(data.raw_lines || []));
+        
+        // Auto-match names with existing items
+        const items = (data.items || []).map((item: any, index: number) => {
+          const existing = products.find(
+            p => p.name.toLowerCase().includes(item.name.toLowerCase()) || 
+                 item.name.toLowerCase().includes(p.name.toLowerCase())
+          );
+          
+          return {
+            id: `scanned-${index}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            originalName: item.name,
+            originalPrice: item.cost_price,
+            originalQty: item.quantity,
+            fileName: uFile.name,
+            
+            action: existing ? 'update' : 'create',
+            productId: existing ? existing.id : '',
+            
+            // Editable fields
+            name: item.name,
+            category_id: existing ? (existing.category_id || '') : (categories.length > 0 ? categories[0].id : ''),
+            cost_price: item.cost_price,
+            selling_price: existing ? existing.selling_price : Math.round(item.cost_price * 1.3),
+            mrp: existing ? (existing.mrp || 0) : Math.round(item.cost_price * 1.4),
+            stock_quantity: item.quantity,
+            unit: existing ? existing.unit : 'Piece',
+            unit_value: existing ? (existing.unit_value || '') : '',
+            barcode: existing ? (existing.barcode || '') : '',
+            low_stock_threshold: existing ? (existing.low_stock_threshold || 5) : 5,
+          };
+        });
+        
+        newScannedItems.push(...items);
+        setUploadedFiles(prev => prev.map(f => f.id === uFile.id ? { ...f, status: 'completed' } : f));
+      } catch (err: any) {
+        console.error('Error scanning file:', uFile.name, err);
+        setUploadedFiles(prev => prev.map(f => f.id === uFile.id ? { ...f, status: 'failed', error: err.message } : f));
+        setScanError(prev => prev ? `${prev}\nFailed on ${uFile.name}: ${err.message}` : `Failed on ${uFile.name}: ${err.message}`);
+      }
+    }
+    
+    setRawOcrLines(allOcrLines);
+    setScannedItems(newScannedItems);
+    setScanning(false);
+  };
+
+  const handleImportScannedItems = async () => {
+    if (scannedItems.length === 0) return;
+    setImporting(true);
+    setImportResult(null);
+    let successCount = 0;
+    let failedCount = 0;
+    
+    for (const item of scannedItems) {
+      try {
+        if (item.action === 'create') {
+          await dbClient.products.create({
+            name: item.name,
+            category_id: item.category_id || undefined,
+            cost_price: Number(item.cost_price) || 0,
+            selling_price: Number(item.selling_price) || 0,
+            mrp: Number(item.mrp) || undefined,
+            stock_quantity: Number(item.stock_quantity) || 0,
+            unit: item.unit,
+            unit_value: item.unit_value ? Number(item.unit_value) : undefined,
+            barcode: item.barcode || undefined,
+            low_stock_threshold: Number(item.low_stock_threshold) || 5,
+          });
+        } else {
+          const existing = products.find(p => p.id === item.productId);
+          if (!existing) throw new Error('Product not found for update');
+          
+          const newStock = Number(existing.stock_quantity) + Number(item.stock_quantity);
+          await dbClient.products.update(item.productId, {
+            cost_price: Number(item.cost_price) || 0,
+            selling_price: Number(item.selling_price) || 0,
+            mrp: Number(item.mrp) || undefined,
+            stock_quantity: newStock,
+            barcode: item.barcode || undefined,
+          });
+        }
+        successCount++;
+      } catch (err) {
+        console.error('Import failed for product:', item.name, err);
+        failedCount++;
+      }
+    }
+    
+    queryClient.invalidateQueries({ queryKey: ['products'] });
+    setImportResult({ success: successCount, failed: failedCount });
+    setImporting(false);
+    
+    if (failedCount === 0) {
+      setScannedItems([]);
+      uploadedFiles.forEach(f => URL.revokeObjectURL(f.url));
+      setUploadedFiles([]);
+      setSelectedPreviewFile(null);
+      setRawOcrLines([]);
+    }
+  };
+
+  const handleScannedItemChange = (id: string, field: string, value: any) => {
+    setScannedItems(prev => prev.map(item => {
+      if (item.id !== id) return item;
+      
+      const updatedItem = { ...item, [field]: value };
+      
+      // If action is changing, handle pre-filling
+      if (field === 'action') {
+        if (value === 'update' && item.productId) {
+          const existing = products.find(p => p.id === item.productId);
+          if (existing) {
+            updatedItem.name = existing.name;
+            updatedItem.category_id = existing.category_id || '';
+            updatedItem.selling_price = existing.selling_price;
+            updatedItem.mrp = existing.mrp || 0;
+            updatedItem.unit = existing.unit;
+            updatedItem.unit_value = existing.unit_value || '';
+            updatedItem.barcode = existing.barcode || '';
+            updatedItem.low_stock_threshold = existing.low_stock_threshold || 5;
+          }
+        } else if (value === 'create') {
+          updatedItem.name = item.originalName;
+          updatedItem.cost_price = item.originalPrice;
+          updatedItem.selling_price = Math.round(item.originalPrice * 1.3);
+          updatedItem.mrp = Math.round(item.originalPrice * 1.4);
+          updatedItem.stock_quantity = item.originalQty;
+          updatedItem.unit = 'Piece';
+          updatedItem.unit_value = '';
+          updatedItem.barcode = '';
+          updatedItem.low_stock_threshold = 5;
+        }
+      }
+      
+      // If selected existing product is changing
+      if (field === 'productId') {
+        const existing = products.find(p => p.id === value);
+        if (existing) {
+          updatedItem.name = existing.name;
+          updatedItem.category_id = existing.category_id || '';
+          updatedItem.selling_price = existing.selling_price;
+          updatedItem.mrp = existing.mrp || 0;
+          updatedItem.unit = existing.unit;
+          updatedItem.unit_value = existing.unit_value || '';
+          updatedItem.barcode = existing.barcode || '';
+          updatedItem.low_stock_threshold = existing.low_stock_threshold || 5;
+        }
+      }
+      
+      return updatedItem;
+    }));
+  };
+
+  const handleRemoveScannedItem = (id: string) => {
+    setScannedItems(prev => prev.filter(item => item.id !== id));
+  };
+
+  const handleAddManualItem = () => {
+    setScannedItems(prev => [
+      ...prev,
+      {
+        id: `manual-${Date.now()}`,
+        originalName: '',
+        originalPrice: 0,
+        originalQty: 1,
+        action: 'create',
+        productId: '',
+        name: 'New Product',
+        category_id: categories.length > 0 ? categories[0].id : '',
+        cost_price: 0,
+        selling_price: 0,
+        mrp: 0,
+        stock_quantity: 1,
+        unit: 'Piece',
+        unit_value: '',
+        barcode: '',
+        low_stock_threshold: 5,
+      }
+    ]);
+  };
+
   // Filtering products
   const filteredProducts = products.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -368,6 +746,16 @@ export default function InventoryPage() {
         >
           <AlertTriangle size={16} />
           Low Stock <span className="ml-1 bg-red-500/10 text-red-500 border border-red-500/20 px-2 py-0.5 rounded-full text-xs font-bold">{lowStockProducts.length}</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('scanbill')}
+          className={`flex items-center gap-2 border-b-2 px-6 py-3 text-sm font-medium transition-all ${activeTab === 'scanbill'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+        >
+          <FileSpreadsheet size={16} />
+          Bill Scanner
         </button>
       </div>
 
@@ -852,6 +1240,613 @@ export default function InventoryPage() {
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* BILL SCANNER TAB CONTENT */}
+      {activeTab === 'scanbill' && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          
+          {/* Webcam / FileSelector Main Area */}
+          {scannedItems.length === 0 && !scanning ? (
+            <div className="space-y-6">
+              
+              {/* Webcam Feed Box */}
+              {webcamActive ? (
+                <div className="glass-panel flex flex-col items-center justify-center rounded-2xl p-6 text-center max-w-2xl mx-auto border-2 border-primary/30 shadow-xl bg-primary/5">
+                  <div className="flex items-center justify-between w-full border-b border-border pb-3 mb-4">
+                    <h4 className="font-bold text-sm text-foreground flex items-center gap-2">
+                      <Camera size={16} className="text-primary animate-pulse" /> Live Camera Stream
+                    </h4>
+                    
+                    {/* Camera selector */}
+                    {webcamDevices.length > 1 && (
+                      <select
+                        value={selectedCameraId}
+                        onChange={(e) => handleCameraChange(e.target.value)}
+                        className="rounded-lg border border-border bg-card px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                      >
+                        {webcamDevices.map(device => (
+                          <option key={device.deviceId} value={device.deviceId}>
+                            {device.label || `Camera ${device.deviceId.substr(0, 5)}`}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                  
+                  <div className="rounded-xl overflow-hidden border border-border bg-black w-full aspect-video flex items-center justify-center relative">
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+
+                  {sessionCaptureCount > 0 && (
+                    <div className="mt-3 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-500 text-xs font-semibold animate-pulse">
+                      ✓ Snapshot #{sessionCaptureCount} successfully captured & added to queue!
+                    </div>
+                  )}
+                  
+                  <div className="mt-5 flex gap-3">
+                    <button
+                      onClick={stopWebcam}
+                      className="rounded-xl border border-border px-5 py-2.5 text-xs font-semibold hover:bg-secondary text-foreground transition-all"
+                    >
+                      Close Camera
+                    </button>
+                    
+                    <button
+                      onClick={capturePhoto}
+                      className="rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-md hover:bg-primary/95 transition-all flex items-center gap-1.5"
+                    >
+                      <Camera size={16} /> Capture Photo
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="glass-panel rounded-2xl p-8 border border-border bg-secondary/10 shadow-xl space-y-8">
+                  <div className="text-center max-w-lg mx-auto">
+                    <h3 className="font-extrabold text-xl text-foreground tracking-tight">Scan Vendor Invoices & Bills</h3>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Upload PDF documents, high-resolution image receipts, or snap photos directly using your camera. PaddleOCR will automatically extract products, prices, and quantities.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-6 md:grid-cols-3">
+                    {/* Card 1: Upload PDF */}
+                    <label className="glass-panel-interactive flex flex-col items-center justify-center p-6 rounded-2xl cursor-pointer text-center group border border-border hover:border-primary/40 transition-all duration-300">
+                      <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-4 group-hover:scale-110 transition-transform">
+                        <FileText size={24} />
+                      </div>
+                      <h4 className="font-bold text-sm text-foreground">Upload PDF</h4>
+                      <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">
+                        Select one or more PDF files. Supports multi-page billing.
+                      </p>
+                      <input
+                        type="file"
+                        accept="application/pdf"
+                        multiple
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
+                    </label>
+
+                    {/* Card 2: Upload Images */}
+                    <label className="glass-panel-interactive flex flex-col items-center justify-center p-6 rounded-2xl cursor-pointer text-center group border border-border hover:border-primary/40 transition-all duration-300">
+                      <div className="h-12 w-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 mb-4 group-hover:scale-110 transition-transform">
+                        <ImageIcon size={24} />
+                      </div>
+                      <h4 className="font-bold text-sm text-foreground">Upload Images</h4>
+                      <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">
+                        Select multiple receipt images from your device.
+                      </p>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
+                    </label>
+
+                    {/* Card 3: Capture Photo */}
+                    <button
+                      onClick={startWebcam}
+                      className="glass-panel-interactive flex flex-col items-center justify-center p-6 rounded-2xl text-center group border border-border hover:border-primary/40 transition-all duration-300 w-full"
+                    >
+                      <div className="h-12 w-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 mb-4 group-hover:scale-110 transition-transform">
+                        <Camera size={24} />
+                      </div>
+                      <h4 className="font-bold text-sm text-foreground">Capture Photo</h4>
+                      <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">
+                        Snap bill photos sequentially using your webcam.
+                      </p>
+                    </button>
+                  </div>
+
+                  {importResult && (
+                    <div className="mt-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-500 flex flex-col items-center gap-1">
+                      <span className="font-semibold">Import Completed Successfully!</span>
+                      <span>Successfully imported/updated {importResult.success} products. {importResult.failed > 0 && `Failed to import ${importResult.failed} products.`}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Uploaded File Queue List */}
+              {uploadedFiles.length > 0 && (
+                <div className="glass-panel rounded-2xl p-6 border border-border space-y-4 max-w-xl mx-auto shadow-md">
+                  <h4 className="font-bold text-sm text-foreground flex items-center justify-between">
+                    <span>Uploaded Bills Queue ({uploadedFiles.length})</span>
+                    <button 
+                      onClick={() => {
+                        uploadedFiles.forEach(f => URL.revokeObjectURL(f.url));
+                        setUploadedFiles([]);
+                        setSelectedPreviewFile(null);
+                      }}
+                      className="text-xs text-destructive hover:underline font-normal"
+                    >
+                      Clear Queue
+                    </button>
+                  </h4>
+                  
+                  <div className="divide-y divide-border/50 max-h-60 overflow-y-auto pr-1">
+                    {uploadedFiles.map((file) => (
+                      <div key={file.id} className="py-2.5 flex items-center justify-between text-xs gap-3">
+                        <div className="min-w-0 flex-1 flex items-center gap-2">
+                          <span className={`h-2 w-2 rounded-full shrink-0 ${
+                            file.status === 'completed' ? 'bg-emerald-500' :
+                            file.status === 'scanning' ? 'bg-primary animate-ping' :
+                            file.status === 'failed' ? 'bg-red-500' : 'bg-muted-foreground'
+                          }`} />
+                          <button
+                            onClick={() => setSelectedPreviewFile(file)}
+                            className={`truncate hover:underline text-left font-medium ${
+                              selectedPreviewFile?.id === file.id ? 'text-primary font-semibold' : 'text-foreground'
+                            }`}
+                          >
+                            {file.name}
+                          </button>
+                          <span className="text-[10px] text-muted-foreground font-mono shrink-0">({(file.size / 1024).toFixed(1)} KB)</span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 shrink-0">
+                          {file.status === 'scanning' && <Loader2 className="animate-spin text-primary shrink-0" size={12} />}
+                          {file.status === 'completed' && <span className="text-emerald-500 font-semibold">Ready</span>}
+                          {file.status === 'failed' && <span className="text-red-500 font-semibold" title={file.error}>Failed</span>}
+                          {file.status === 'pending' && <span className="text-muted-foreground">Queued</span>}
+                          
+                          <button
+                            onClick={() => handleRemoveFileFromQueue(file.id)}
+                            className="text-muted-foreground hover:text-destructive p-1 rounded hover:bg-secondary"
+                            disabled={scanning}
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="pt-4 border-t border-border flex justify-end">
+                    <button
+                      onClick={handleScanBill}
+                      disabled={scanning || uploadedFiles.every(f => f.status === 'completed')}
+                      className="rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-md hover:bg-primary/95 transition-all flex items-center gap-2"
+                    >
+                      <Camera size={16} /> Analyze Bill Queue ({uploadedFiles.filter(f => f.status === 'pending' || f.status === 'failed').length} left)
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : scanning ? (
+            <div className="glass-panel flex flex-col items-center justify-center rounded-2xl p-16 text-center">
+              <div className="relative h-20 w-20 mb-6 flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
+                <Camera className="text-primary animate-bounce" size={24} />
+              </div>
+              <h3 className="font-bold text-lg text-foreground">Scanning & Parsing Invoices...</h3>
+              <div className="mt-4 space-y-2 max-w-sm w-full mx-auto">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Processing File Queue</span>
+                  <span className="font-semibold text-primary animate-pulse">Running OCR</span>
+                </div>
+                <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+                  <div className="h-full bg-primary rounded-full animate-[progress_3s_infinite_linear]" style={{ width: '75%' }} />
+                </div>
+                
+                {uploadedFiles.find(f => f.status === 'scanning') && (
+                  <p className="text-xs text-primary font-semibold mt-2 truncate">
+                    Currently scanning: "{uploadedFiles.find(f => f.status === 'scanning')?.name}"
+                  </p>
+                )}
+                
+                <p className="text-xs text-muted-foreground pt-2">
+                  Processing PDFs or snapping multiple files may take 10-30 seconds per file. Please keep this browser window active.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="grid gap-6 lg:grid-cols-12">
+              
+              {/* Left Column: Image / PDF Preview */}
+              <div className="lg:col-span-4 space-y-4">
+                
+                {/* Visual file list manager */}
+                <div className="glass-panel rounded-2xl p-4 border border-border space-y-3">
+                  <h4 className="font-bold text-xs text-foreground uppercase tracking-wider text-muted-foreground border-b border-border pb-2 flex items-center justify-between">
+                    <span>Scanned Queue</span>
+                    <label className="text-[10px] text-primary hover:underline cursor-pointer">
+                      + Add More
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        multiple
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
+                    </label>
+                  </h4>
+                  
+                  <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
+                    {uploadedFiles.map(file => (
+                      <button
+                        key={file.id}
+                        onClick={() => setSelectedPreviewFile(file)}
+                        className={`w-full text-left p-2 rounded-xl text-xs flex justify-between items-center transition-all ${
+                          selectedPreviewFile?.id === file.id ? 'bg-primary/10 border border-primary/20 text-primary font-medium' : 'hover:bg-secondary/50 text-foreground border border-transparent'
+                        }`}
+                      >
+                        <span className="truncate flex-1 pr-2">{file.name}</span>
+                        <span className={`text-[10px] uppercase font-bold shrink-0 ${file.status === 'completed' ? 'text-emerald-500' : 'text-red-500'}`}>
+                          {file.status === 'completed' ? 'Scanned' : 'Error'}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Preview pane */}
+                <div className="glass-panel rounded-2xl overflow-hidden p-4 flex flex-col h-fit">
+                  <div className="flex items-center justify-between border-b border-border pb-3 mb-3">
+                    <h4 className="font-semibold text-sm text-foreground flex items-center gap-2 truncate pr-2">
+                      <Camera size={16} className="text-primary" />
+                      <span className="truncate" title={selectedPreviewFile?.name || 'File Preview'}>
+                        {selectedPreviewFile?.name || 'Preview'}
+                      </span>
+                    </h4>
+                    <button
+                      onClick={() => {
+                        uploadedFiles.forEach(f => URL.revokeObjectURL(f.url));
+                        setUploadedFiles([]);
+                        setSelectedPreviewFile(null);
+                        setScannedItems([]);
+                        setRawOcrLines([]);
+                      }}
+                      className="text-xs text-destructive hover:underline shrink-0"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                  
+                  {selectedPreviewFile && (
+                    <div className="rounded-xl overflow-hidden border border-border bg-secondary/35 flex items-center justify-center max-h-[450px] overflow-y-auto p-2 scrollbar-none relative">
+                      {selectedPreviewFile.file.type === 'application/pdf' ? (
+                        <div className="flex flex-col items-center justify-center p-8 text-center bg-card rounded-lg border border-border/80 shadow-sm w-full">
+                          <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-3">
+                            <FileSpreadsheet size={24} />
+                          </div>
+                          <span className="font-semibold text-xs text-foreground truncate max-w-full px-2">{selectedPreviewFile.name}</span>
+                          <span className="text-[10px] text-muted-foreground mt-1 font-mono">PDF Document (Page Count Varies)</span>
+                          <a
+                            href={selectedPreviewFile.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-4 text-[10px] font-bold text-primary hover:underline"
+                          >
+                            Open PDF in New Tab
+                          </a>
+                        </div>
+                      ) : (
+                        <img
+                          src={selectedPreviewFile.url}
+                          alt="Scanned Bill Preview"
+                          className="max-w-full h-auto object-contain rounded-lg shadow-sm"
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Raw lines toggle */}
+                <div className="glass-panel rounded-2xl p-4">
+                  <button
+                    onClick={() => setShowRawLines(!showRawLines)}
+                    className="flex items-center justify-between w-full text-left text-xs font-semibold text-muted-foreground hover:text-foreground"
+                  >
+                    <span>DEBUG: View Combined Raw OCR Text ({rawOcrLines.length} lines)</span>
+                    <span>{showRawLines ? 'Hide' : 'Show'}</span>
+                  </button>
+                  
+                  {showRawLines && rawOcrLines.length > 0 && (
+                    <div className="mt-3 p-3 bg-secondary/50 rounded-xl max-h-48 overflow-y-auto text-[10px] font-mono text-muted-foreground space-y-1 select-all border border-border">
+                      {rawOcrLines.map((line, idx) => (
+                        <div key={idx} className={`border-b border-border/10 last:border-0 pb-1 ${
+                          line.startsWith('=== FILE:') ? 'text-primary font-bold pt-2 border-b-primary/20' : ''
+                        }`}>{line}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Right Column: Aggregated Extracted Items Mapping */}
+              <div className="lg:col-span-8 space-y-4">
+                <div className="glass-panel rounded-2xl p-6 shadow-md border border-border space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4 gap-2">
+                    <div>
+                      <h3 className="font-bold text-base text-foreground">Extracted Products ({scannedItems.length})</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Verify and map parsed items from all files to your inventory.
+                      </p>
+                    </div>
+                    
+                    <button
+                      onClick={handleAddManualItem}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground transition-all shrink-0"
+                    >
+                      <Plus size={12} /> Add Item Manually
+                    </button>
+                  </div>
+
+                  {scanWarning && (
+                    <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-500 flex items-center gap-2">
+                      <AlertTriangle size={14} className="shrink-0" />
+                      <span className="truncate">{scanWarning}</span>
+                    </div>
+                  )}
+
+                  {scanError && (
+                    <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-xs text-red-500 flex items-center gap-2">
+                      <AlertTriangle size={14} className="shrink-0" />
+                      <span className="truncate">{scanError}</span>
+                    </div>
+                  )}
+
+                  {scannedItems.length === 0 ? (
+                    <div className="py-12 text-center text-sm text-muted-foreground">
+                      No items extracted. Try adding items manually or scanning another bill.
+                    </div>
+                  ) : (
+                    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1 scrollbar-thin">
+                      {scannedItems.map((item, index) => (
+                        <div key={item.id} className="relative p-4 rounded-xl border border-border bg-secondary/10 hover:border-primary/20 transition-all space-y-3">
+                          {/* Trash button to exclude item */}
+                          <button
+                            onClick={() => handleRemoveScannedItem(item.id)}
+                            className="absolute right-3 top-3 text-muted-foreground hover:text-destructive p-1 rounded-lg hover:bg-secondary transition-all"
+                            title="Exclude from import"
+                          >
+                            <X size={14} />
+                          </button>
+
+                          {/* Scanned stats */}
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 items-center text-xs">
+                            <span className="font-bold text-primary font-mono">Item #{index + 1}</span>
+                            {item.originalName && (
+                              <>
+                                <span className="text-muted-foreground border-l border-border pl-3">
+                                  Scanned Name: <span className="font-semibold text-foreground">"{item.originalName}"</span>
+                                </span>
+                                <span className="text-muted-foreground border-l border-border pl-3">
+                                  Scanned Cost: <span className="font-mono font-semibold text-foreground">{currencySymbol}{item.originalPrice}</span>
+                                </span>
+                                <span className="text-muted-foreground border-l border-border pl-3">
+                                  Scanned Qty: <span className="font-semibold text-foreground">{item.originalQty}</span>
+                                </span>
+                                {item.fileName && (
+                                  <span className="text-[10px] text-muted-foreground border-l border-border pl-3 truncate max-w-[150px]" title={item.fileName}>
+                                    From: <span className="font-semibold">{item.fileName}</span>
+                                  </span>
+                                )}
+                              </>
+                            )}
+                            {!item.originalName && (
+                              <span className="text-muted-foreground border-l border-border pl-3 font-semibold text-amber-500">
+                                Manually Added Item
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Action Selector: Create or Update */}
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="space-y-1">
+                              <label className="text-[10px] uppercase font-bold text-muted-foreground">Import Action</label>
+                              <select
+                                value={item.action}
+                                onChange={(e) => handleScannedItemChange(item.id, 'action', e.target.value)}
+                                className="block w-full rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold focus:border-primary focus:outline-none"
+                              >
+                                <option value="create">Create New Product</option>
+                                <option value="update">Update Existing Product</option>
+                              </select>
+                            </div>
+
+                            {item.action === 'update' ? (
+                              <div className="space-y-1">
+                                <label className="text-[10px] uppercase font-bold text-muted-foreground">Select Product to Update *</label>
+                                <select
+                                  value={item.productId}
+                                  onChange={(e) => handleScannedItemChange(item.id, 'productId', e.target.value)}
+                                  className="block w-full rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs focus:border-primary focus:outline-none"
+                                >
+                                  <option value="">-- Choose Inventory Product --</option>
+                                  {products.map(p => (
+                                    <option key={p.id} value={p.id}>
+                                      {p.name} (Stock: {p.stock_quantity} {p.unit}, Cost: {currencySymbol}{p.cost_price || 0})
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            ) : (
+                              <div className="space-y-1">
+                                <label className="text-[10px] uppercase font-bold text-muted-foreground">Category</label>
+                                <select
+                                  value={item.category_id}
+                                  onChange={(e) => handleScannedItemChange(item.id, 'category_id', e.target.value)}
+                                  className="block w-full rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs focus:border-primary focus:outline-none"
+                                >
+                                  <option value="">Uncategorised</option>
+                                  {categories.map(c => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Editable Details Fields */}
+                          <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
+                            <div className="col-span-2 sm:col-span-2 space-y-1">
+                              <label className="text-[10px] uppercase font-bold text-muted-foreground">Product Name</label>
+                              <input
+                                type="text"
+                                value={item.name}
+                                onChange={(e) => handleScannedItemChange(item.id, 'name', e.target.value)}
+                                className="block w-full rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs focus:border-primary focus:outline-none"
+                                placeholder="Product Name"
+                              />
+                            </div>
+                            
+                            <div className="space-y-1">
+                              <label className="text-[10px] uppercase font-bold text-muted-foreground">Unit of Measure</label>
+                              <select
+                                value={item.unit}
+                                onChange={(e) => handleScannedItemChange(item.id, 'unit', e.target.value)}
+                                className="block w-full rounded-lg border border-border bg-card px-2 py-1 text-xs focus:border-primary focus:outline-none"
+                              >
+                                <option value="Piece">Piece (pc)</option>
+                                <option value="Kilogram">Kilogram (kg)</option>
+                                <option value="Liter">Liter (L)</option>
+                                <option value="Meter">Meter (m)</option>
+                                <option value="Box">Box</option>
+                                <option value="Packet">Packet</option>
+                              </select>
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[10px] uppercase font-bold text-muted-foreground">Qty to Import</label>
+                              <input
+                                type="number"
+                                value={item.stock_quantity}
+                                onChange={(e) => handleScannedItemChange(item.id, 'stock_quantity', Number(e.target.value))}
+                                className="block w-full rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-mono focus:border-primary focus:outline-none"
+                                placeholder="Qty"
+                                min={0}
+                              />
+                            </div>
+                            
+                            <div className="space-y-1">
+                              <label className="text-[10px] uppercase font-bold text-muted-foreground">Cost Price ({currencySymbol})</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={item.cost_price}
+                                onChange={(e) => handleScannedItemChange(item.id, 'cost_price', Number(e.target.value))}
+                                className="block w-full rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-mono focus:border-primary focus:outline-none"
+                                placeholder="Cost Price"
+                                min={0}
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[10px] uppercase font-bold text-muted-foreground">Selling Price ({currencySymbol})</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={item.selling_price}
+                                onChange={(e) => handleScannedItemChange(item.id, 'selling_price', Number(e.target.value))}
+                                className="block w-full rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-mono focus:border-primary focus:outline-none"
+                                placeholder="Selling Price"
+                                min={0}
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[10px] uppercase font-bold text-muted-foreground">MRP ({currencySymbol})</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={item.mrp}
+                                onChange={(e) => handleScannedItemChange(item.id, 'mrp', Number(e.target.value))}
+                                className="block w-full rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-mono focus:border-primary focus:outline-none"
+                                placeholder="MRP"
+                                min={0}
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[10px] uppercase font-bold text-muted-foreground">Barcode</label>
+                              <input
+                                type="text"
+                                value={item.barcode}
+                                onChange={(e) => handleScannedItemChange(item.id, 'barcode', e.target.value)}
+                                className="block w-full rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-mono focus:border-primary focus:outline-none"
+                                placeholder="Barcode"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Bulk import execution section */}
+                  {scannedItems.length > 0 && (
+                    <div className="flex flex-wrap justify-between items-center pt-4 border-t border-border gap-4">
+                      <button
+                        onClick={() => {
+                          setScannedItems([]);
+                          uploadedFiles.forEach(f => URL.revokeObjectURL(f.url));
+                          setUploadedFiles([]);
+                          setSelectedPreviewFile(null);
+                          setRawOcrLines([]);
+                        }}
+                        className="rounded-xl border border-border px-4 py-2.5 text-xs font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground transition-all"
+                      >
+                        Reset / Cancel
+                      </button>
+                      
+                      <div className="flex gap-2">
+                        {uploadedFiles.some(f => f.status === 'pending' || f.status === 'failed') && (
+                          <button
+                            onClick={handleScanBill}
+                            disabled={scanning}
+                            className="rounded-xl border border-primary/20 bg-primary/10 px-4 py-2.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-all flex items-center gap-1.5"
+                          >
+                            <Camera size={14} /> Scan Pending Bills
+                          </button>
+                        )}
+                        
+                        <button
+                          onClick={handleImportScannedItems}
+                          disabled={importing || scannedItems.some(item => item.action === 'update' && !item.productId)}
+                          className="rounded-xl bg-primary px-6 py-2.5 text-xs font-semibold text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                        >
+                          {importing && <Loader2 className="animate-spin" size={12} />}
+                          Import {scannedItems.length} Products to Inventory
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
